@@ -108,8 +108,17 @@ FYP/
 - **Phase 2 complete:** broadband QoS simulator with scenario engine, CSV export, and API publisher
 - **Phase 3 complete:** FastAPI backend, SQLAlchemy models, database, and metric APIs
 - **Phase 5 dashboard complete:** React NOC UI with live metrics, charts, issues, and AI synopsis
+- **Phase 4 complete:** Isolation Forest anomaly detection, hybrid scoring, `/api/anomalies/run`
 
-### Install backend dependencies
+### Train / run anomaly detection
+
+```bash
+python -m backend.ml.train --samples 200
+python -m backend.ml.evaluate --samples 120
+
+# With backend running:
+curl -X POST "http://127.0.0.1:8000/api/anomalies/run?limit=500"
+```
 
 ```bash
 pip install -r backend/requirements.txt

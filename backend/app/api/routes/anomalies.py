@@ -1,20 +1,15 @@
-"""Anomaly endpoints.
-
-GET endpoints are fully functional and read persisted anomaly results. The
-detection trigger (POST /anomalies/run) is implemented in Phase 4 when the ML
-model is added; until then it returns HTTP 501 with a clear message.
-"""
+"""Anomaly detection endpoints (Phase 4)."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.network import AnomalyResult, NetworkNode, QoSMeasurement
-from app.schemas.qos import AnomalyResponse
+from app.schemas.qos import AnomalyResponse, DetectionRunResponse
+from app.services import anomaly_service
 
 router = APIRouter(prefix="/anomalies", tags=["anomalies"])
 
@@ -58,12 +53,31 @@ def list_anomalies(
     return results
 
 
-@router.post("/run")
-def run_detection() -> JSONResponse:
-    return JSONResponse(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        content={
-            "detail": "Anomaly detection is implemented in Phase 4.",
-            "model_name": "pending_phase_4",
-        },
+@router.post("/run", response_model=DetectionRunResponse)
+def run_detection(
+    limit: int = Query(default=500, ge=1, le=5000),
+    only_unscored: bool = Query(default=True),
+    db: Session = Depends(get_db),
+) -> DetectionRunResponse:
+    """Score recent measurements with Isolation Forest and store results."""
+    try:
+        summary = anomaly_service.run_detection(
+            db, limit=limit, only_unscored=only_unscored
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Detection failed: {exc}",
+        ) from exc
+
+    return DetectionRunResponse(
+        processed_measurements=summary.processed_measurements,
+        anomalies_detected=summary.anomalies_detected,
+        model_name=summary.model_name,
+        skipped_existing=summary.skipped_existing,
     )

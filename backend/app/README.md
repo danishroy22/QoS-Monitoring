@@ -50,8 +50,8 @@ python scripts/run_backend.py --reload
 | GET | `/api/anomalies` | List anomaly results (populated in Phase 4) |
 | GET | `/api/recommendations` | List AI recommendations (populated in Phase 6) |
 
-Endpoints returning HTTP 501 until later phases: `POST /api/anomalies/run`
-(Phase 4) and `POST /api/analyze` (Phase 6).
+Endpoints returning HTTP 501 until later phases: `POST /api/analyze`
+(Phase 6). Anomaly detection is live via `POST /api/anomalies/run` (Phase 4).
 
 ## Feed it live data
 

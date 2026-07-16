@@ -1,0 +1,55 @@
+{
+  "model_name": "isolation_forest_v1",
+  "n_samples": 480,
+  "precision": 1.0,
+  "recall": 0.6125,
+  "f1": 0.7596899224806202,
+  "confusion_matrix": [
+    [
+      240,
+      0
+    ],
+    [
+      93,
+      147
+    ]
+  ],
+  "per_scenario": {
+    "normal": {
+      "n": 240,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "congestion": {
+      "n": 48,
+      "precision": 1.0,
+      "recall": 0.875,
+      "f1": 0.9333333333333333
+    },
+    "high_latency": {
+      "n": 48,
+      "precision": 1.0,
+      "recall": 0.22916666666666666,
+      "f1": 0.3728813559322034
+    },
+    "packet_loss": {
+      "n": 48,
+      "precision": 1.0,
+      "recall": 0.9583333333333334,
+      "f1": 0.9787234042553191
+    },
+    "bandwidth_limit": {
+      "n": 48,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "outage": {
+      "n": 48,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  }
+}

@@ -162,9 +162,44 @@ def test_anomalies_empty(client):
     assert resp.json() == []
 
 
-def test_run_detection_not_implemented(client):
-    resp = client.post("/api/anomalies/run")
-    assert resp.status_code == 501
+def test_run_detection_and_list_anomalies(client):
+    # Ensure a trained model artefact exists for the API service.
+    from backend.ml.detector import AnomalyDetector, DEFAULT_MODEL_PATH
+    from backend.ml.train import build_training_set
+    from app.services.anomaly_service import clear_detector_cache
+
+    if not DEFAULT_MODEL_PATH.exists():
+        rows = build_training_set(samples_per_node=60, seed=11)
+        AnomalyDetector.train(rows, contamination=0.12, random_state=11).save()
+    clear_detector_cache()
+
+    # Seed degraded measurements so Isolation Forest has something to flag.
+    for i in range(5):
+        client.post(
+            "/api/measurements",
+            json=_sample_payload(
+                node_code="BNG-DXB-001",
+                timestamp=f"2026-07-16T20:0{i}:00Z",
+                latency_ms=140.0 + i,
+                jitter_ms=25.0,
+                packet_loss_pct=3.5,
+                bandwidth_utilisation_pct=94.0,
+                throughput_mbps=20.0,
+                availability_pct=98.0,
+                scenario_label="congestion",
+            ),
+        )
+
+    run = client.post("/api/anomalies/run?limit=100")
+    assert run.status_code == 200, run.text
+    body = run.json()
+    assert body["model_name"] == "isolation_forest_v1"
+    assert body["processed_measurements"] >= 5
+
+    listed = client.get("/api/anomalies?active_only=true")
+    assert listed.status_code == 200
+    # At least some of the congested samples should be flagged.
+    assert isinstance(listed.json(), list)
 
 
 def test_analyze_not_implemented(client):

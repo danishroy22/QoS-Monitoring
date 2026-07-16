@@ -7,6 +7,11 @@ SQLAlchemy==2.0.36
 pydantic==2.10.4
 pydantic-settings==2.7.1
 
+# Phase 4 — anomaly detection
+scikit-learn==1.6.0
+numpy==2.2.1
+joblib==1.4.2
+
 # Optional: enable PostgreSQL by setting QOS_DATABASE_URL to a postgresql+psycopg URL.
 # psycopg[binary]==3.2.3
 

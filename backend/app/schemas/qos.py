@@ -116,3 +116,10 @@ class RecommendationResponse(BaseModel):
     recommended_actions: str
     model_provider: str
     created_at: datetime
+
+
+class DetectionRunResponse(BaseModel):
+    processed_measurements: int
+    anomalies_detected: int
+    model_name: str
+    skipped_existing: int = 0

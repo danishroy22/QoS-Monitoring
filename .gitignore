@@ -1,4 +1,3 @@
-data/
 *.db
 .env
 __pycache__/
@@ -6,8 +5,12 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
-.env
 *.egg-info/
 node_modules/
 dist/
 build/
+data/
+backend/ml/artifacts/*.joblib
+backend/ml/artifacts/*_meta.json
+!backend/ml/artifacts/.gitkeep
+
