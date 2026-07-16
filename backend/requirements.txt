@@ -1,2 +1,15 @@
-# Phase 2 simulator has no third-party dependencies (stdlib only).
-# Phase 3+ will add FastAPI, SQLAlchemy, scikit-learn, etc.
+# Backend dependencies for Phase 3+ (FastAPI + SQLAlchemy).
+# The Phase 2 simulator itself uses only the Python standard library.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+SQLAlchemy==2.0.36
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Optional: enable PostgreSQL by setting QOS_DATABASE_URL to a postgresql+psycopg URL.
+# psycopg[binary]==3.2.3
+
+# Testing
+pytest==8.3.4
+httpx==0.28.1

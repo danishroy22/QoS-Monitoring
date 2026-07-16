@@ -106,6 +106,22 @@ FYP/
 
 - **Phase 1 complete:** architecture, schema, API design, roadmap, folder scaffold
 - **Phase 2 complete:** broadband QoS simulator with scenario engine, CSV export, and API publisher
+- **Phase 3 complete:** FastAPI backend, SQLAlchemy models, database, and metric APIs
+
+### Install backend dependencies
+
+```bash
+pip install -r backend/requirements.txt
+```
+
+### Run the backend
+
+```bash
+python scripts/run_backend.py --reload
+# API docs at http://localhost:8000/docs
+```
+
+The backend uses SQLite by default (no setup). To use PostgreSQL, see `backend/app/README.md`.
 
 ### Run the simulator
 
@@ -116,11 +132,18 @@ python -m backend.simulator --mode batch --samples 120 --seed 42
 # Live ticks
 python -m backend.simulator --mode live --ticks 20 --interval 2
 
+# Live ticks published to the backend
+python -m backend.simulator --mode live --ticks 20 --interval 2 --publish-api
+
 # Force a congestion demo
 python -m backend.simulator --mode batch --samples 50 --force-scenario congestion
+```
 
-# Unit tests
+### Tests
+
+```bash
 python -m unittest backend.tests.test_simulator -v
+python -m pytest backend/tests/test_api.py -v
 ```
 
 ## First Build Milestone
