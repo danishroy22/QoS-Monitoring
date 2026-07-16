@@ -107,6 +107,7 @@ FYP/
 - **Phase 1 complete:** architecture, schema, API design, roadmap, folder scaffold
 - **Phase 2 complete:** broadband QoS simulator with scenario engine, CSV export, and API publisher
 - **Phase 3 complete:** FastAPI backend, SQLAlchemy models, database, and metric APIs
+- **Phase 5 dashboard complete:** React NOC UI with live metrics, charts, issues, and AI synopsis
 
 ### Install backend dependencies
 
@@ -122,6 +123,23 @@ python scripts/run_backend.py --reload
 ```
 
 The backend uses SQLite by default (no setup). To use PostgreSQL, see `backend/app/README.md`.
+
+### Open the dashboard
+
+```bash
+# Terminal 1 — backend
+python scripts/run_backend.py
+
+# Terminal 2 — live simulator feeding the API
+python -m backend.simulator --mode live --ticks 0 --interval 3 --publish-api
+
+# Terminal 3 — frontend
+cd frontend
+npm install
+npm run dev
+```
+
+Then open **http://localhost:5173**
 
 ### Run the simulator
 
