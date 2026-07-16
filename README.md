@@ -102,6 +102,27 @@ FYP/
 7. **Phase 7: Testing and dissertation documentation**
    Validate the system, collect results, create screenshots, write evaluation, and prepare dissertation material.
 
+## Current Status
+
+- **Phase 1 complete:** architecture, schema, API design, roadmap, folder scaffold
+- **Phase 2 complete:** broadband QoS simulator with scenario engine, CSV export, and API publisher
+
+### Run the simulator
+
+```bash
+# Historical labelled dataset (writes data/simulator/*.csv)
+python -m backend.simulator --mode batch --samples 120 --seed 42
+
+# Live ticks
+python -m backend.simulator --mode live --ticks 20 --interval 2
+
+# Force a congestion demo
+python -m backend.simulator --mode batch --samples 50 --force-scenario congestion
+
+# Unit tests
+python -m unittest backend.tests.test_simulator -v
+```
+
 ## First Build Milestone
 
 The first working version should run locally with:

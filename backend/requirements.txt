@@ -1,0 +1,2 @@
+# Phase 2 simulator has no third-party dependencies (stdlib only).
+# Phase 3+ will add FastAPI, SQLAlchemy, scikit-learn, etc.
