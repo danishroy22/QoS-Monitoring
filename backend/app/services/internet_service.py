@@ -15,12 +15,29 @@ from app.schemas.internet import (
     HealthBreakdown,
     HistoryResponse,
     IspResponse,
+    SpeedTestCompleteRequest,
+    SpeedTestLatencyPhaseOut,
     SpeedTestResultOut,
     SpeedTestRunResponse,
+    SpeedTestServerPhaseOut,
     StatisticsResponse,
 )
 from measurement.assistant import build_assistant_context, generate_network_assistant
-from measurement.engine import NetworkMeasurementEngine
+from measurement.engine import (
+    NetworkMeasurementEngine,
+    iter_download_progress,
+    iter_upload_progress,
+    run_latency_probe,
+    run_server_probe,
+    DOWNLOAD_PASS_BYTES_FULL,
+    DOWNLOAD_PASS_BYTES_QUICK,
+    DOWNLOAD_PASSES_FULL,
+    DOWNLOAD_PASSES_QUICK,
+    UPLOAD_TOTAL_BYTES_FULL,
+    UPLOAD_TOTAL_BYTES_QUICK,
+    PING_COUNT_FULL,
+    PING_COUNT_QUICK,
+)
 from measurement.qos_analysis import analyze_qos
 
 
@@ -51,6 +68,62 @@ def _row_dict(row: SpeedTestResult) -> dict:
 def run_speedtest(db: Session, *, quick: bool = False) -> SpeedTestRunResponse:
     engine = NetworkMeasurementEngine(quick=quick)
     measured = engine.run()
+    return _persist_measurement(db, measured)
+
+
+def measure_server_phase() -> SpeedTestServerPhaseOut:
+    payload = run_server_probe()
+    return SpeedTestServerPhaseOut.model_validate(payload)
+
+
+def measure_latency_phase(*, quick: bool = False) -> SpeedTestLatencyPhaseOut:
+    count = PING_COUNT_QUICK if quick else PING_COUNT_FULL
+    payload = run_latency_probe(count=count)
+    return SpeedTestLatencyPhaseOut.model_validate(payload)
+
+
+def iter_download_phase(*, quick: bool = False):
+    if quick:
+        yield from iter_download_progress(
+            bytes_per_pass=DOWNLOAD_PASS_BYTES_QUICK,
+            passes=DOWNLOAD_PASSES_QUICK,
+        )
+    else:
+        yield from iter_download_progress(
+            bytes_per_pass=DOWNLOAD_PASS_BYTES_FULL,
+            passes=DOWNLOAD_PASSES_FULL,
+        )
+
+
+def iter_upload_phase(*, quick: bool = False):
+    total = UPLOAD_TOTAL_BYTES_QUICK if quick else UPLOAD_TOTAL_BYTES_FULL
+    yield from iter_upload_progress(total_bytes=total)
+
+
+def complete_speedtest(db: Session, payload: SpeedTestCompleteRequest) -> SpeedTestRunResponse:
+    from measurement.engine import MeasurementResult
+
+    measured = MeasurementResult(
+        timestamp=datetime.now(timezone.utc),
+        download_mbps=payload.download_mbps,
+        upload_mbps=payload.upload_mbps,
+        ping_ms=payload.ping_ms,
+        jitter_ms=payload.jitter_ms,
+        packet_loss_pct=payload.packet_loss_pct,
+        dns_lookup_ms=payload.dns_lookup_ms,
+        http_response_ms=payload.http_response_ms,
+        ipv4_ok=payload.ipv4_ok,
+        ipv6_ok=payload.ipv6_ok,
+        public_ip=payload.public_ip,
+        isp_name=payload.isp_name,
+        as_info=payload.as_info,
+        server_label=payload.server_label,
+        errors=list(payload.errors),
+    )
+    return _persist_measurement(db, measured)
+
+
+def _persist_measurement(db: Session, measured) -> SpeedTestRunResponse:
     health = analyze_qos(measured.to_dict())
 
     row = SpeedTestResult(

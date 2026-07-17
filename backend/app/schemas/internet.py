@@ -15,6 +15,46 @@ class SpeedTestRequest(BaseModel):
     )
 
 
+class SpeedTestPhaseQuery(BaseModel):
+    quick: bool = Field(default=False, description="Use smaller payloads for this phase")
+
+
+class SpeedTestServerPhaseOut(BaseModel):
+    dns_lookup_ms: float | None = None
+    http_response_ms: float | None = None
+    ipv4_ok: bool = False
+    ipv6_ok: bool = False
+    public_ip: str | None = None
+    isp_name: str | None = None
+    as_info: str | None = None
+    server_label: str = "cloudflare"
+    errors: list[str] = []
+
+
+class SpeedTestLatencyPhaseOut(BaseModel):
+    ping_ms: float | None = None
+    jitter_ms: float | None = None
+    packet_loss_pct: float | None = None
+    errors: list[str] = []
+
+
+class SpeedTestCompleteRequest(BaseModel):
+    download_mbps: float | None = None
+    upload_mbps: float | None = None
+    ping_ms: float | None = None
+    jitter_ms: float | None = None
+    packet_loss_pct: float | None = None
+    dns_lookup_ms: float | None = None
+    http_response_ms: float | None = None
+    ipv4_ok: bool = False
+    ipv6_ok: bool = False
+    public_ip: str | None = None
+    isp_name: str | None = None
+    as_info: str | None = None
+    server_label: str = "cloudflare"
+    errors: list[str] = []
+
+
 class MetricScoreOut(BaseModel):
     name: str
     value: float | None = None

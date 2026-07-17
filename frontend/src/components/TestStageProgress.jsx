@@ -1,19 +1,16 @@
 import { motion } from "framer-motion";
 
+/** Horizontal stage rail under the premium speedometer. */
 export const TEST_STAGES = [
   { id: "init", label: "Initializing" },
-  { id: "server", label: "Selecting Best Server" },
-  { id: "ping", label: "Testing Ping" },
-  { id: "download", label: "Testing Download Speed" },
-  { id: "upload", label: "Testing Upload Speed" },
-  { id: "calculate", label: "Calculating Results" },
-  { id: "ai", label: "Generating AI Analysis" },
-  { id: "results", label: "Displaying Results" },
+  { id: "server", label: "Finding Server" },
+  { id: "download", label: "Download" },
+  { id: "upload", label: "Upload" },
+  { id: "ping", label: "Latency" },
+  { id: "jitter", label: "Jitter" },
+  { id: "ai", label: "Analysis" },
 ];
 
-/**
- * Stage pipeline shown during an active SmartQoS speed test.
- */
 export default function TestStageProgress({ currentStageId }) {
   const currentIndex = Math.max(
     0,
@@ -21,35 +18,39 @@ export default function TestStageProgress({ currentStageId }) {
   );
 
   return (
-    <div className="sq-stages" role="list" aria-label="Speed test stages">
-      {TEST_STAGES.map((stage, index) => {
-        const state =
-          index < currentIndex ? "done" : index === currentIndex ? "active" : "pending";
-        return (
-          <motion.div
-            key={stage.id}
-            className={`sq-stage ${state}`}
-            role="listitem"
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.04 }}
-          >
-            <span className="sq-stage-dot">
-              {state === "done" ? "✓" : state === "active" ? "" : index + 1}
-              {state === "active" && <span className="sq-stage-pulse" />}
-            </span>
-            <span className="sq-stage-label">{stage.label}</span>
-            {state === "active" && (
-              <motion.span
-                className="sq-stage-bar"
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 1.1, ease: "easeInOut", repeat: Infinity }}
-              />
-            )}
-          </motion.div>
-        );
-      })}
+    <div className="sq-stage-rail" role="list" aria-label="Speed test stages">
+      <div className="sq-stage-track">
+        <motion.div
+          className="sq-stage-fill"
+          initial={false}
+          animate={{
+            width: `${(currentIndex / Math.max(TEST_STAGES.length - 1, 1)) * 100}%`,
+          }}
+          transition={{ type: "spring", stiffness: 60, damping: 18 }}
+        />
+      </div>
+      <div className="sq-stage-steps">
+        {TEST_STAGES.map((stage, index) => {
+          const state =
+            index < currentIndex ? "done" : index === currentIndex ? "active" : "pending";
+          return (
+            <motion.div
+              key={stage.id}
+              className={`sq-stage-step ${state}`}
+              role="listitem"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04 }}
+            >
+              <span className="sq-stage-dot">
+                {state === "done" ? "✓" : index + 1}
+                {state === "active" && <span className="sq-stage-pulse" />}
+              </span>
+              <span className="sq-stage-label">{stage.label}</span>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

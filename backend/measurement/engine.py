@@ -28,6 +28,19 @@ DEFAULT_DOWNLOAD_URL = "https://speed.cloudflare.com/__down?bytes=5000000"
 DEFAULT_UPLOAD_URL = "https://speed.cloudflare.com/__up"
 DEFAULT_IPINFO_URL = "http://ip-api.com/json/?fields=status,message,query,isp,org,as,mobile,proxy,hosting"
 
+DOWNLOAD_CHUNK_BYTES = 512 * 1024
+DOWNLOAD_PASS_BYTES_FULL = 25_000_000
+DOWNLOAD_PASSES_FULL = 2
+DOWNLOAD_PASS_BYTES_QUICK = 3_000_000
+DOWNLOAD_PASSES_QUICK = 1
+
+UPLOAD_CHUNK_BYTES = 2_000_000
+UPLOAD_TOTAL_BYTES_FULL = 20_000_000
+UPLOAD_TOTAL_BYTES_QUICK = 2_000_000
+
+PING_COUNT_FULL = 12
+PING_COUNT_QUICK = 4
+
 
 @dataclass
 class MeasurementResult:
@@ -96,18 +109,195 @@ def measure_http_response(url: str = DEFAULT_HTTP_URL) -> float:
 
 
 def measure_download_speed(url: str = DEFAULT_DOWNLOAD_URL) -> float:
-    data, elapsed_ms = _http_get(url, timeout=45.0)
+    data, elapsed_ms = _http_get(url, timeout=120.0)
     seconds = max(elapsed_ms / 1000.0, 0.001)
     megabits = (len(data) * 8) / 1_000_000.0
     return megabits / seconds
 
 
+def measure_download_speed_multi(
+    *,
+    bytes_per_pass: int = DOWNLOAD_PASS_BYTES_FULL,
+    passes: int = DOWNLOAD_PASSES_FULL,
+    download_base_url: str = "https://speed.cloudflare.com/__down",
+) -> float:
+    """Average throughput across multiple large download passes."""
+    speeds: list[float] = []
+    for _ in range(passes):
+        url = f"{download_base_url}?bytes={bytes_per_pass}"
+        speeds.append(measure_download_speed(url))
+    return statistics.mean(speeds) if speeds else 0.0
+
+
+def iter_download_progress(
+    *,
+    bytes_per_pass: int = DOWNLOAD_PASS_BYTES_FULL,
+    passes: int = DOWNLOAD_PASSES_FULL,
+    download_base_url: str = "https://speed.cloudflare.com/__down",
+):
+    """Yield live download Mbps updates, then a final averaged result."""
+    pass_speeds: list[float] = []
+    errors: list[str] = []
+
+    for pass_idx in range(passes):
+        url = f"{download_base_url}?bytes={bytes_per_pass}"
+        request = urllib.request.Request(url, headers={"User-Agent": "FYP-InternetQuality/1.0"})
+        started_pass = time.perf_counter()
+        total_bytes = 0
+        try:
+            with urllib.request.urlopen(request, timeout=120.0) as response:
+                while True:
+                    chunk = response.read(DOWNLOAD_CHUNK_BYTES)
+                    if not chunk:
+                        break
+                    total_bytes += len(chunk)
+                    elapsed = time.perf_counter() - started_pass
+                    current_mbps = (total_bytes * 8 / 1_000_000.0) / max(elapsed, 0.001)
+                    yield {
+                        "phase": "download",
+                        "pass": pass_idx + 1,
+                        "passes": passes,
+                        "bytes": total_bytes,
+                        "mbps": round(current_mbps, 2),
+                        "done": False,
+                    }
+            pass_elapsed = time.perf_counter() - started_pass
+            pass_mbps = (total_bytes * 8 / 1_000_000.0) / max(pass_elapsed, 0.001)
+            pass_speeds.append(pass_mbps)
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            errors.append(f"download pass {pass_idx + 1}: {exc}")
+            logger.warning("Download pass failed: %s", exc)
+
+    final = round(statistics.mean(pass_speeds), 2) if pass_speeds else None
+    yield {
+        "phase": "download",
+        "mbps": final,
+        "download_mbps": final,
+        "done": True,
+        "errors": errors,
+    }
+
+
 def measure_upload_speed(url: str = DEFAULT_UPLOAD_URL, size_bytes: int = 1_000_000) -> float:
     payload = b"0" * size_bytes
-    elapsed_ms = _http_post(url, payload, timeout=45.0)
+    elapsed_ms = _http_post(url, payload, timeout=120.0)
     seconds = max(elapsed_ms / 1000.0, 0.001)
     megabits = (size_bytes * 8) / 1_000_000.0
     return megabits / seconds
+
+
+def iter_upload_progress(
+    *,
+    total_bytes: int = UPLOAD_TOTAL_BYTES_FULL,
+    chunk_bytes: int = UPLOAD_CHUNK_BYTES,
+    upload_url: str = DEFAULT_UPLOAD_URL,
+):
+    """Yield live upload Mbps updates while sending chunked payloads."""
+    errors: list[str] = []
+    sent = 0
+    started = time.perf_counter()
+    payload_template = b"0" * chunk_bytes
+
+    try:
+        while sent < total_bytes:
+            chunk_size = min(chunk_bytes, total_bytes - sent)
+            payload = payload_template[:chunk_size]
+            _http_post(upload_url, payload, timeout=120.0)
+            sent += chunk_size
+            elapsed = time.perf_counter() - started
+            current_mbps = (sent * 8 / 1_000_000.0) / max(elapsed, 0.001)
+            yield {
+                "phase": "upload",
+                "bytes": sent,
+                "mbps": round(current_mbps, 2),
+                "done": False,
+            }
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        errors.append(f"upload: {exc}")
+        logger.warning("Upload failed: %s", exc)
+
+    elapsed = time.perf_counter() - started
+    final = round((sent * 8 / 1_000_000.0) / max(elapsed, 0.001), 2) if sent else None
+    yield {
+        "phase": "upload",
+        "mbps": final,
+        "upload_mbps": final,
+        "done": True,
+        "errors": errors,
+    }
+
+
+def run_server_probe() -> dict[str, Any]:
+    """DNS, HTTP, IP version, and ISP lookup for the 'Finding Server' phase."""
+    errors: list[str] = []
+    dns_lookup_ms: float | None = None
+    http_response_ms: float | None = None
+    ipv4_ok = False
+    ipv6_ok = False
+    public_ip: str | None = None
+    isp_name: str | None = None
+    as_info: str | None = None
+
+    try:
+        dns_lookup_ms = round(measure_dns_lookup(), 2)
+    except (OSError, socket.gaierror, ValueError) as exc:
+        errors.append(f"dns: {exc}")
+
+    try:
+        http_response_ms = round(measure_http_response(), 2)
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        errors.append(f"http: {exc}")
+
+    try:
+        ipv4_ok, ipv6_ok = check_ip_version_support()
+    except OSError as exc:
+        errors.append(f"ip_version: {exc}")
+
+    try:
+        info = lookup_public_ip_and_isp()
+        public_ip = info.get("public_ip")
+        isp_name = info.get("isp_name")
+        as_info = info.get("as_info")
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        errors.append(f"isp: {exc}")
+
+    return {
+        "dns_lookup_ms": dns_lookup_ms,
+        "http_response_ms": http_response_ms,
+        "ipv4_ok": ipv4_ok,
+        "ipv6_ok": ipv6_ok,
+        "public_ip": public_ip,
+        "isp_name": isp_name,
+        "as_info": as_info,
+        "server_label": "cloudflare",
+        "errors": errors,
+    }
+
+
+def run_latency_probe(*, ping_host: str = DEFAULT_PING_HOST, count: int = PING_COUNT_FULL) -> dict[str, Any]:
+    """Ping, jitter, and packet loss for the latency phase."""
+    errors: list[str] = []
+    ping_ms: float | None = None
+    jitter_ms: float | None = None
+    packet_loss_pct: float | None = None
+
+    try:
+        ping_ms, jitter_ms, packet_loss_pct = measure_ping(ping_host, count=count)
+        if ping_ms is not None:
+            ping_ms = round(ping_ms, 2)
+        if jitter_ms is not None:
+            jitter_ms = round(jitter_ms, 2)
+        if packet_loss_pct is not None:
+            packet_loss_pct = round(packet_loss_pct, 2)
+    except (OSError, ValueError, statistics.StatisticsError) as exc:
+        errors.append(f"ping: {exc}")
+
+    return {
+        "ping_ms": ping_ms,
+        "jitter_ms": jitter_ms,
+        "packet_loss_pct": packet_loss_pct,
+        "errors": errors,
+    }
 
 
 def check_ip_version_support() -> tuple[bool, bool]:
@@ -159,7 +349,7 @@ def measure_ping(
             cmd,
             capture_output=True,
             text=True,
-            timeout=20,
+            timeout=max(30, count * 5 + 10),
             check=False,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
@@ -208,26 +398,26 @@ class NetworkMeasurementEngine:
         ping_host: str = DEFAULT_PING_HOST,
         download_url: str = DEFAULT_DOWNLOAD_URL,
         upload_url: str = DEFAULT_UPLOAD_URL,
-        upload_bytes: int = 1_000_000,
+        upload_bytes: int = UPLOAD_TOTAL_BYTES_FULL,
         quick: bool = False,
     ) -> None:
         self.ping_host = ping_host
-        self.download_url = download_url
         self.upload_url = upload_url
-        self.upload_bytes = 500_000 if quick else upload_bytes
-        self.ping_count = 4 if quick else 6
+        self.quick = quick
         if quick:
-            self.download_url = "https://speed.cloudflare.com/__down?bytes=1500000"
+            self.download_bytes_per_pass = DOWNLOAD_PASS_BYTES_QUICK
+            self.download_passes = DOWNLOAD_PASSES_QUICK
+            self.upload_total_bytes = UPLOAD_TOTAL_BYTES_QUICK
+            self.ping_count = PING_COUNT_QUICK
+        else:
+            self.download_bytes_per_pass = DOWNLOAD_PASS_BYTES_FULL
+            self.download_passes = DOWNLOAD_PASSES_FULL
+            self.upload_total_bytes = upload_bytes
+            self.ping_count = PING_COUNT_FULL
+        self.download_url = download_url
 
     def run(self) -> MeasurementResult:
         result = MeasurementResult(timestamp=_now())
-
-        try:
-            result.ping_ms, result.jitter_ms, result.packet_loss_pct = measure_ping(
-                self.ping_host, count=self.ping_count
-            )
-        except Exception as exc:  # noqa: BLE001
-            result.errors.append(f"ping: {exc}")
 
         try:
             result.dns_lookup_ms = round(measure_dns_lookup(), 2)
@@ -240,16 +430,34 @@ class NetworkMeasurementEngine:
             result.errors.append(f"http: {exc}")
 
         try:
-            result.download_mbps = round(measure_download_speed(self.download_url), 2)
+            result.download_mbps = round(
+                measure_download_speed_multi(
+                    bytes_per_pass=self.download_bytes_per_pass,
+                    passes=self.download_passes,
+                ),
+                2,
+            )
         except Exception as exc:  # noqa: BLE001
             result.errors.append(f"download: {exc}")
 
         try:
-            result.upload_mbps = round(
-                measure_upload_speed(self.upload_url, size_bytes=self.upload_bytes), 2
-            )
+            final_upload: float | None = None
+            for event in iter_upload_progress(
+                total_bytes=self.upload_total_bytes,
+                upload_url=self.upload_url,
+            ):
+                if event.get("done"):
+                    final_upload = event.get("upload_mbps")
+            result.upload_mbps = round(final_upload, 2) if final_upload is not None else None
         except Exception as exc:  # noqa: BLE001
             result.errors.append(f"upload: {exc}")
+
+        try:
+            result.ping_ms, result.jitter_ms, result.packet_loss_pct = measure_ping(
+                self.ping_host, count=self.ping_count
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(f"ping: {exc}")
 
         try:
             result.ipv4_ok, result.ipv6_ok = check_ip_version_support()

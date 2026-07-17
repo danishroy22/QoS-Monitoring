@@ -54,6 +54,75 @@ export function runSpeedTest(quick = false) {
   });
 }
 
+export function measureServerPhase() {
+  return request("/speedtest/measure/server", { method: "POST" });
+}
+
+export function measureLatencyPhase(quick = false) {
+  return request(`/speedtest/measure/latency?quick=${quick ? "true" : "false"}`, {
+    method: "POST",
+  });
+}
+
+export function completeSpeedTest(payload) {
+  return request("/speedtest/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function consumeSseStream(path, onEvent, { signal, quick = false } = {}) {
+  const qs = quick ? "?quick=true" : "";
+  const url = `${API_BASE}${path}${qs}`;
+  let response;
+  try {
+    response = await fetch(url, {
+      signal,
+      headers: { Accept: "text/event-stream" },
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") throw err;
+    throw new Error(
+      `Cannot reach API at ${url}. Start the backend with: python scripts/run_backend.py`
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalEvent = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() || "";
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line.startsWith("data: ")) continue;
+      const data = JSON.parse(line.slice(6));
+      onEvent(data);
+      if (data.done) finalEvent = data;
+    }
+  }
+
+  return finalEvent;
+}
+
+export function streamDownloadPhase(onEvent, options = {}) {
+  return consumeSseStream("/speedtest/stream/download", onEvent, options);
+}
+
+export function streamUploadPhase(onEvent, options = {}) {
+  return consumeSseStream("/speedtest/stream/upload", onEvent, options);
+}
+
 export function fetchHistory(limit = 50) {
   return request(`/history?limit=${limit}`);
 }
