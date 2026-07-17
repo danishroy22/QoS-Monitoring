@@ -1,109 +1,221 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useState } from "react";
 import {
-  fetchAnomalies,
+  fetchDashboard,
   fetchHealth,
-  fetchLatestMetrics,
-  fetchRecommendations,
+  fetchRecommendation,
 } from "./api/client";
-import AiPanel from "./components/AiPanel";
-import Header from "./components/Header";
-import IssuesPanel from "./components/IssuesPanel";
-import MetricChart from "./components/MetricChart";
-import NodeHealthGrid from "./components/NodeHealthGrid";
-import StatusBar from "./components/StatusBar";
-import { usePolling } from "./hooks/usePolling";
+import AiAssistant from "./components/AiAssistant";
+import HistoryTable from "./components/HistoryTable";
+import ResultsView from "./components/ResultsView";
+import SpeedGraph from "./components/SpeedGraph";
+import SpeedTestExperience from "./components/SpeedTestExperience";
+import { formatNumber, ratingClass } from "./utils/format";
+
+/**
+ * SmartQoS app shell.
+ * Speedometer is always visible on the dashboard hero.
+ * After a test completes, transitions to the Results view.
+ */
+const PRIMARY_METRICS = [
+  { key: "download_mbps", label: "Download", unit: "Mbps", healthName: "Download" },
+  { key: "upload_mbps", label: "Upload", unit: "Mbps", healthName: "Upload" },
+  { key: "ping_ms", label: "Ping", unit: "ms", healthName: "Ping" },
+  { key: "jitter_ms", label: "Jitter", unit: "ms", healthName: "Jitter" },
+  { key: "packet_loss_pct", label: "Packet Loss", unit: "%", healthName: "Packet Loss" },
+];
 
 export default function App() {
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [health, setHealth] = useState(null);
+  const [view, setView] = useState("dashboard");
+  const [dashboard, setDashboard] = useState(null);
+  const [recommendation, setRecommendation] = useState(null);
+  const [lastTest, setLastTest] = useState(null);
+  const [apiOk, setApiOk] = useState(false);
+  const [error, setError] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [testKey, setTestKey] = useState(0);
 
-  const fetchLatest = useCallback(() => fetchLatestMetrics(), []);
-  const {
-    data: metrics,
-    error: metricsError,
-    loading,
-    updatedAt,
-  } = usePolling(fetchLatest, 4000, true);
+  const refresh = useCallback(async () => {
+    try {
+      const [dash, health] = await Promise.all([fetchDashboard(), fetchHealth()]);
+      setDashboard(dash);
+      setApiOk(health?.status === "ok");
+      setError(null);
+    } catch (err) {
+      setApiOk(false);
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
 
-  const fetchIssues = useCallback(() => fetchAnomalies({ activeOnly: true }), []);
-  const { data: anomalies } = usePolling(fetchIssues, 8000, true);
-
-  const fetchAi = useCallback(() => fetchRecommendations(10), []);
-  const {
-    data: recommendations,
-    refresh: refreshRecommendations,
-  } = usePolling(fetchAi, 12000, true);
-
-  useEffect(() => {
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const result = await fetchHealth();
-        if (!cancelled) setHealth(result);
-      } catch {
-        if (!cancelled) setHealth(null);
-      }
-    };
-    check();
-    const timer = window.setInterval(check, 10000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
+  const refreshAi = useCallback(async () => {
+    setAiLoading(true);
+    try {
+      const rec = await fetchRecommendation();
+      setRecommendation(rec);
+    } catch {
+      setRecommendation(null);
+    } finally {
+      setAiLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!selectedNode && Array.isArray(metrics) && metrics.length > 0) {
-      setSelectedNode(metrics[0].node_code);
-    }
-  }, [metrics, selectedNode]);
+    refresh();
+    refreshAi();
+  }, [refresh, refreshAi]);
 
-  const connected = Boolean(health?.status === "ok");
+  const latest = dashboard?.latest;
+  const health = dashboard?.health;
+  const isp = dashboard?.isp;
+  const score = health?.overall_score ?? latest?.overall_score;
+  const rating = health?.overall_rating ?? latest?.overall_rating ?? "—";
 
-  const pageMessage = useMemo(() => {
-    if (metricsError) return metricsError;
-    if (loading && !metrics) return "Connecting to monitoring API…";
-    return null;
-  }, [loading, metrics, metricsError]);
+  const metricRating = (healthName) => {
+    const found = health?.metrics?.find((m) => m.name === healthName);
+    return found?.rating || "—";
+  };
+
+  const handleTestComplete = async ({ speedTest, recommendation: rec }) => {
+    setLastTest({ speedTest, recommendation: rec });
+    if (rec) setRecommendation(rec);
+    await refresh();
+    setView("results");
+  };
+
+  const handleTestError = (message) => {
+    if (message) setError(message);
+  };
 
   return (
-    <div className="noc-shell">
-      <div className="noc-atmosphere" aria-hidden="true" />
-      <div className="noc-content">
-        <Header health={health} updatedAt={updatedAt} connected={connected} />
-        <StatusBar metrics={metrics} />
-
-        {pageMessage && (
-          <div className={`banner ${metricsError ? "error" : "info"}`}>
-            {pageMessage}
-            {metricsError ? (
-              <span>
-                {" "}
-                Start the backend with <code>python scripts/run_backend.py</code>.
+    <div className="iq-shell dark">
+      <div className="iq-bg" aria-hidden="true" />
+      <main className="iq-main">
+        <header className="iq-top">
+          <div>
+            <p className="iq-eyebrow">SmartQoS</p>
+            <h1>{view === "results" ? "Test Results" : "Internet Quality Dashboard"}</h1>
+          </div>
+          <div className="iq-top-meta">
+            <span className={`iq-status ${apiOk ? "on" : "off"}`}>
+              {apiOk ? "API online" : "API offline"}
+            </span>
+            {isp?.isp_name && view === "dashboard" && (
+              <span className="iq-isp">
+                {isp.isp_name}
+                {isp.public_ip ? ` · ${isp.public_ip}` : ""}
               </span>
-            ) : null}
+            )}
           </div>
-        )}
+        </header>
 
-        <NodeHealthGrid
-          metrics={metrics}
-          selectedNode={selectedNode}
-          onSelect={setSelectedNode}
-        />
+        {error && <div className="iq-banner error">{error}</div>}
 
-        <div className="lower-grid">
-          <MetricChart nodeCode={selectedNode} />
-          <div className="side-stack">
-            <IssuesPanel metrics={metrics} anomalies={anomalies} />
-            <AiPanel
-              metrics={metrics}
-              recommendations={recommendations}
-              selectedNode={selectedNode}
-              onAnalyzed={() => refreshRecommendations()}
+        <AnimatePresence mode="wait">
+          {view === "dashboard" && (
+            <motion.div
+              key="dashboard"
+              className="sq-view"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.35 }}
+            >
+              <section className="iq-hero iq-hero-speed">
+                <div className="iq-score-card glass sq-hero-gauge">
+                  <div className="sq-score-strip">
+                    <div>
+                      <p className="iq-score-label">Overall Score</p>
+                      <p className={`iq-score-value compact ${ratingClass(rating)}`}>
+                        {score != null ? `${score}/100` : "—"}
+                      </p>
+                      <p className={`iq-score-rating ${ratingClass(rating)}`}>{rating}</p>
+                    </div>
+                  </div>
+
+                  {/* Speedometer is always mounted here */}
+                  <SpeedTestExperience
+                    key={testKey}
+                    idleValue={latest?.download_mbps || 0}
+                    autoStart={false}
+                    onComplete={handleTestComplete}
+                    onError={handleTestError}
+                  />
+                </div>
+
+                <div className="iq-metric-grid">
+                  {PRIMARY_METRICS.map((metric) => (
+                    <article key={metric.key} className="iq-metric glass">
+                      <p className="iq-metric-label">{metric.label}</p>
+                      <p className="iq-metric-value">
+                        {latest
+                          ? formatNumber(
+                              latest[metric.key],
+                              metric.key.includes("loss") ? 2 : 1
+                            )
+                          : "—"}
+                        <span>{metric.unit}</span>
+                      </p>
+                      <p
+                        className={`iq-metric-rating ${ratingClass(
+                          metricRating(metric.healthName)
+                        )}`}
+                      >
+                        {metricRating(metric.healthName)}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              {health?.metrics && (
+                <section className="iq-panel glass compact">
+                  <div className="iq-panel-head">
+                    <h2>QoS Breakdown</h2>
+                    <p>Per-metric health classification</p>
+                  </div>
+                  <div className="iq-breakdown">
+                    {health.metrics.map((m) => (
+                      <div key={m.name} className="iq-breakdown-row">
+                        <span>{m.name}</span>
+                        <span className="mono">
+                          {m.value == null
+                            ? "—"
+                            : `${formatNumber(m.value)} ${m.unit}`}
+                        </span>
+                        <span className={`iq-pill ${ratingClass(m.rating)}`}>
+                          {m.rating} · {m.score}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <SpeedGraph history={dashboard?.history || []} />
+              <div className="iq-lower">
+                <HistoryTable history={dashboard?.history || []} />
+                <AiAssistant recommendation={recommendation} loading={aiLoading} />
+              </div>
+            </motion.div>
+          )}
+
+          {view === "results" && lastTest && (
+            <ResultsView
+              key="results"
+              speedTest={lastTest.speedTest}
+              recommendation={lastTest.recommendation || recommendation}
+              onBack={() => {
+                setTestKey((k) => k + 1);
+                setView("dashboard");
+              }}
+              onRetest={() => {
+                setTestKey((k) => k + 1);
+                setView("dashboard");
+              }}
             />
-          </div>
-        </div>
-      </div>
+          )}
+        </AnimatePresence>
+      </main>
     </div>
   );
 }

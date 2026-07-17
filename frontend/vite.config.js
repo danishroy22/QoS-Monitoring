@@ -6,14 +6,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-      },
-      "/health": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-      },
+      "/api": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/health": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/speedtest": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/history": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/dashboard": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/statistics": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/isp": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/recommendation": { target: "http://127.0.0.1:8000", changeOrigin: true },
     },
   },
 });

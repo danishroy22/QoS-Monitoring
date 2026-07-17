@@ -1,18 +1,25 @@
 /**
- * API client for the FastAPI QoS monitoring backend.
- * Uses the Vite proxy in development (/api -> localhost:8000).
+ * SmartQoS API client.
+ * Uses VITE_API_BASE when set (recommended), otherwise same-origin / Vite proxy.
  */
-
-const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+const API_BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      Accept: "application/json",
-      ...(options.headers ?? {}),
-    },
-    ...options,
-  });
+  const url = `${API_BASE}${path}`;
+  let response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        ...(options.headers ?? {}),
+      },
+      ...options,
+    });
+  } catch (err) {
+    throw new Error(
+      `Cannot reach API at ${url}. Start the backend with: python scripts/run_backend.py`
+    );
+  }
 
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`;
@@ -22,66 +29,39 @@ async function request(path, options = {}) {
     } catch {
       // keep status text
     }
-    throw new Error(detail);
-  }
-
-  if (response.status === 204) {
-    return null;
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
   }
   return response.json();
+}
+
+export function getApiBase() {
+  return API_BASE || "(vite proxy / same origin)";
 }
 
 export function fetchHealth() {
   return request("/health");
 }
 
-export function fetchLatestMetrics() {
-  return request("/api/metrics/latest");
+export function fetchDashboard() {
+  return request("/dashboard");
 }
 
-export function fetchHistory(nodeCode, metric = "latency_ms", limit = 120) {
-  const params = new URLSearchParams({
-    node_code: nodeCode,
-    metric,
-    limit: String(limit),
-  });
-  return request(`/api/metrics/history?${params}`);
-}
-
-export function fetchAnomalies({ activeOnly = true, limit = 50 } = {}) {
-  const params = new URLSearchParams({
-    active_only: String(activeOnly),
-    limit: String(limit),
-  });
-  return request(`/api/anomalies?${params}`);
-}
-
-export function fetchRecommendations(limit = 20) {
-  const params = new URLSearchParams({ limit: String(limit) });
-  return request(`/api/recommendations?${params}`);
-}
-
-export function fetchNodes() {
-  return request("/api/nodes");
-}
-
-export function runAnalysis({ anomalyId, nodeCode, includeRecentHistory = true } = {}) {
-  const body = {
-    include_recent_history: includeRecentHistory,
-  };
-  if (anomalyId != null) body.anomaly_id = anomalyId;
-  if (nodeCode) body.node_code = nodeCode;
-  return request("/api/analyze", {
+export function runSpeedTest(quick = false) {
+  return request("/speedtest", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ quick }),
   });
 }
 
-export function runAnomalyDetection(limit = 500) {
-  const params = new URLSearchParams({
-    limit: String(limit),
-    only_unscored: "true",
-  });
-  return request(`/api/anomalies/run?${params}`, { method: "POST" });
+export function fetchHistory(limit = 50) {
+  return request(`/history?limit=${limit}`);
+}
+
+export function fetchRecommendation() {
+  return request("/recommendation");
+}
+
+export function fetchIsp() {
+  return request("/isp");
 }

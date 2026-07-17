@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.models.network import NetworkNode
+from app.models import speedtest as _speedtest_model  # noqa: F401 — register table
 
 logger = logging.getLogger(__name__)
 

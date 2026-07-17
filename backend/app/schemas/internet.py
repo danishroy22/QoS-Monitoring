@@ -1,0 +1,103 @@
+"""Pydantic schemas for the Internet Quality API."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class SpeedTestRequest(BaseModel):
+    quick: bool = Field(
+        default=False,
+        description="Faster test with smaller download/upload payloads",
+    )
+
+
+class MetricScoreOut(BaseModel):
+    name: str
+    value: float | None = None
+    unit: str
+    score: int
+    rating: str
+
+
+class HealthBreakdown(BaseModel):
+    overall_score: int
+    overall_rating: str
+    metrics: list[MetricScoreOut]
+
+
+class SpeedTestResultOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    timestamp: datetime
+    download_mbps: float | None
+    upload_mbps: float | None
+    ping_ms: float | None
+    jitter_ms: float | None
+    packet_loss_pct: float | None
+    dns_lookup_ms: float | None
+    http_response_ms: float | None
+    ipv4_ok: bool
+    ipv6_ok: bool
+    public_ip: str | None
+    isp_name: str | None
+    as_info: str | None
+    server_label: str
+    overall_score: int | None
+    overall_rating: str | None
+
+
+class SpeedTestRunResponse(BaseModel):
+    result: SpeedTestResultOut
+    health: HealthBreakdown
+    errors: list[str] = []
+
+
+class HistoryResponse(BaseModel):
+    count: int
+    results: list[SpeedTestResultOut]
+
+
+class StatisticsResponse(BaseModel):
+    count: int
+    avg_download_mbps: float | None
+    avg_upload_mbps: float | None
+    avg_ping_ms: float | None
+    avg_jitter_ms: float | None
+    avg_packet_loss_pct: float | None
+    avg_overall_score: float | None
+    best_overall_score: int | None
+    worst_overall_score: int | None
+    latest_rating: str | None
+
+
+class IspResponse(BaseModel):
+    public_ip: str | None
+    isp_name: str | None
+    as_info: str | None
+    ipv4_ok: bool | None = None
+    ipv6_ok: bool | None = None
+    last_tested_at: datetime | None = None
+
+
+class DashboardResponse(BaseModel):
+    latest: SpeedTestResultOut | None
+    health: HealthBreakdown | None
+    statistics: StatisticsResponse
+    history: list[SpeedTestResultOut]
+    isp: IspResponse
+
+
+class AssistantResponse(BaseModel):
+    analysis: str
+    possible_reasons: list[str]
+    recommended_actions: list[str]
+    focus_metric: str | None = None
+    overall_rating: str | None = None
+    overall_score: int | None = None
+    model_provider: str
+    generated_at: datetime

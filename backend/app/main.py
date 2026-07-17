@@ -1,12 +1,10 @@
-"""FastAPI application factory for the broadband QoS monitoring backend.
+"""FastAPI application factory for the AI Internet Quality platform.
 
-Run locally from the repository root (d:\\FYP):
+Primary product surface (Ookla-style):
+  POST /speedtest, GET /history, GET /dashboard, GET /statistics,
+  GET /isp, GET /recommendation, GET /health
 
-    uvicorn backend.app.main:app --reload
-
-or via the helper script:
-
-    python scripts/run_backend.py
+Legacy NOC simulator APIs remain under /api/* for dissertation continuity.
 """
 
 from __future__ import annotations
@@ -17,7 +15,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analyze, anomalies, health, measurements, metrics
+from app.api.routes import analyze, anomalies, health, internet, measurements, metrics
 from app.core.config import get_settings
 from app.db.init_db import init_db
 
@@ -33,15 +31,13 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    """Create and configure the FastAPI application."""
     settings = get_settings()
     app = FastAPI(
-        title="AI-Driven Broadband QoS Monitoring API",
-        version="0.3.0",
+        title="AI-Driven Internet Quality & Broadband QoS Platform",
+        version="1.0.0",
         description=(
-            "Backend for a simplified NOC platform: QoS ingestion, storage, and "
-            "metric queries. Anomaly detection (Phase 4) and Generative AI "
-            "analysis (Phase 6) extend this API."
+            "Real network measurement engine, QoS health scoring, historical "
+            "analytics, and an AI Network Assistant — with legacy NOC APIs under /api."
         ),
         lifespan=lifespan,
     )
@@ -54,6 +50,11 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Primary Internet Quality API (Phases 2–6 redesign)
+    app.include_router(internet.router)
+    # Keep a single health endpoint from the dedicated health router as well
+    # (internet.router also exposes /health — FastAPI will use the first match).
+    # Legacy simulated NOC platform
     prefix = settings.api_prefix
     app.include_router(health.router)
     app.include_router(measurements.router, prefix=prefix)
@@ -67,6 +68,8 @@ def create_app() -> FastAPI:
             "service": settings.app_name,
             "docs": "/docs",
             "health": "/health",
+            "dashboard": "/dashboard",
+            "speedtest": "POST /speedtest",
         }
 
     return app
