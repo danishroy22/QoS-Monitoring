@@ -29,7 +29,10 @@ export default function App() {
   const { data: anomalies } = usePolling(fetchIssues, 8000, true);
 
   const fetchAi = useCallback(() => fetchRecommendations(10), []);
-  const { data: recommendations } = usePolling(fetchAi, 12000, true);
+  const {
+    data: recommendations,
+    refresh: refreshRecommendations,
+  } = usePolling(fetchAi, 12000, true);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,7 +95,12 @@ export default function App() {
           <MetricChart nodeCode={selectedNode} />
           <div className="side-stack">
             <IssuesPanel metrics={metrics} anomalies={anomalies} />
-            <AiPanel metrics={metrics} recommendations={recommendations} />
+            <AiPanel
+              metrics={metrics}
+              recommendations={recommendations}
+              selectedNode={selectedNode}
+              onAnalyzed={() => refreshRecommendations()}
+            />
           </div>
         </div>
       </div>

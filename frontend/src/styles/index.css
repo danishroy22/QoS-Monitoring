@@ -552,6 +552,48 @@ code {
   color: var(--ink-faint);
 }
 
+.action-btn {
+  border: 1px solid var(--teal);
+  background: var(--teal);
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.5rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  opacity: 0.92;
+}
+
+.action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.severity-inline {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.severity-inline.critical,
+.severity-inline.high {
+  color: var(--crit);
+}
+.severity-inline.medium {
+  color: var(--warn);
+}
+.severity-inline.low {
+  color: var(--ok);
+}
+
 .empty-copy {
   margin: 0;
   color: var(--ink-soft);

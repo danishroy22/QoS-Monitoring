@@ -1,11 +1,7 @@
+import { useState } from "react";
+import { runAnalysis } from "../api/client";
 import { formatDateTime, scenarioLabel } from "../utils/format";
 
-/**
- * AI recommendations panel.
- * Displays persisted Generative AI output when available (Phase 6).
- * Until then, shows a deterministic operational synopsis from live metrics
- * so the dissertation demo has a complete NOC story.
- */
 function buildSynopsis(metrics) {
   const rows = Array.isArray(metrics) ? metrics : [];
   if (rows.length === 0) {
@@ -16,7 +12,7 @@ function buildSynopsis(metrics) {
         "Start the backend API",
         "Run the simulator with --publish-api",
       ],
-      provider: "rule-synopsis",
+      provider: "awaiting-data",
     };
   }
 
@@ -33,8 +29,9 @@ function buildSynopsis(metrics) {
         "Continue routine monitoring",
         "Retain current capacity plan",
       ],
-      provider: "rule-synopsis",
+      provider: "live-synopsis",
       stamped: focus.timestamp,
+      nodeCode: focus.node_code,
     };
   }
 
@@ -57,41 +54,107 @@ function buildSynopsis(metrics) {
       "Correlate with peak-hour subscriber demand",
       "Prioritise capacity or traffic-engineering review for affected region",
     ],
-    provider: "rule-synopsis (Phase 6 replaces with Generative AI)",
+    provider: "live-synopsis",
     stamped: focus.timestamp,
+    nodeCode: focus.node_code,
   };
 }
 
-export default function AiPanel({ metrics, recommendations }) {
+function toViewModel(payload) {
+  if (!payload) return null;
+  if (payload.likely_causes && Array.isArray(payload.likely_causes)) {
+    return {
+      summary: payload.summary,
+      likely_causes: payload.likely_causes,
+      recommended_actions: payload.recommended_actions,
+      provider: payload.model_provider,
+      stamped: payload.created_at,
+      severity: payload.severity,
+      nodeCode: payload.node_code,
+    };
+  }
+  return {
+    summary: payload.summary,
+    likely_causes: String(payload.likely_causes || "")
+      .split(/\n|;/)
+      .map((s) => s.replace(/^\-\s*/, "").trim())
+      .filter(Boolean),
+    recommended_actions: String(payload.recommended_actions || "")
+      .split(/\n|;/)
+      .map((s) => s.replace(/^\-\s*/, "").trim())
+      .filter(Boolean),
+    provider: payload.model_provider,
+    stamped: payload.created_at,
+  };
+}
+
+export default function AiPanel({
+  metrics,
+  recommendations,
+  selectedNode,
+  onAnalyzed,
+}) {
+  const [analysis, setAnalysis] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
   const saved = Array.isArray(recommendations) ? recommendations : [];
   const live = buildSynopsis(metrics);
+  const focusNode =
+    selectedNode ||
+    analysis?.nodeCode ||
+    live.nodeCode ||
+    (Array.isArray(metrics) && metrics[0]?.node_code) ||
+    null;
+
   const primary =
-    saved.length > 0
-      ? {
-          summary: saved[0].summary,
-          likely_causes: String(saved[0].likely_causes)
-            .split(/\n|;/)
-            .map((s) => s.trim())
-            .filter(Boolean),
-          recommended_actions: String(saved[0].recommended_actions)
-            .split(/\n|;/)
-            .map((s) => s.trim())
-            .filter(Boolean),
-          provider: saved[0].model_provider,
-          stamped: saved[0].created_at,
-        }
-      : live;
+    analysis ||
+    (saved.length > 0 ? toViewModel(saved[0]) : null) ||
+    live;
+
+  const handleAnalyze = async () => {
+    if (!focusNode) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await runAnalysis({ nodeCode: focusNode });
+      setAnalysis(toViewModel(result));
+      onAnalyzed?.(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <section className="panel ai-panel">
-      <div className="panel-head">
-        <h2>AI analysis</h2>
-        <p>
-          {saved.length > 0
-            ? "Generative AI recommendation"
-            : "Operational synopsis · Generative AI in Phase 6"}
-        </p>
+      <div className="panel-head row">
+        <div>
+          <h2>AI analysis</h2>
+          <p>
+            {analysis || saved.length > 0
+              ? "Generative AI / offline playbook recommendation"
+              : "Live synopsis — click generate for full AI analysis"}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="action-btn"
+          onClick={handleAnalyze}
+          disabled={busy || !focusNode}
+        >
+          {busy ? "Analysing…" : `Analyse ${focusNode || "node"}`}
+        </button>
       </div>
+
+      {error && <p className="empty-copy error">{error}</p>}
+
+      {primary.severity && (
+        <p className={`severity-inline ${primary.severity}`}>
+          Severity: {primary.severity}
+        </p>
+      )}
 
       <p className="ai-summary">{primary.summary}</p>
 
@@ -99,7 +162,7 @@ export default function AiPanel({ metrics, recommendations }) {
         <div>
           <h3>Likely causes</h3>
           <ul>
-            {primary.likely_causes.map((item) => (
+            {(primary.likely_causes || []).map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
@@ -107,7 +170,7 @@ export default function AiPanel({ metrics, recommendations }) {
         <div>
           <h3>Recommended actions</h3>
           <ul>
-            {primary.recommended_actions.map((item) => (
+            {(primary.recommended_actions || []).map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>

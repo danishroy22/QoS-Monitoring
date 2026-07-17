@@ -202,6 +202,43 @@ def test_run_detection_and_list_anomalies(client):
     assert isinstance(listed.json(), list)
 
 
-def test_analyze_not_implemented(client):
-    resp = client.post("/api/analyze")
-    assert resp.status_code == 501
+def test_analyze_with_offline_fallback(client, monkeypatch):
+    monkeypatch.setenv("QOS_AI_FORCE_FALLBACK", "true")
+    monkeypatch.setenv("QOS_OPENAI_API_KEY", "")
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+
+    client.post(
+        "/api/measurements",
+        json=_sample_payload(
+            node_code="BNG-DXB-001",
+            timestamp="2026-07-16T21:00:00Z",
+            latency_ms=150.0,
+            jitter_ms=22.0,
+            packet_loss_pct=2.5,
+            bandwidth_utilisation_pct=95.0,
+            throughput_mbps=25.0,
+            scenario_label="congestion",
+        ),
+    )
+
+    resp = client.post(
+        "/api/analyze",
+        json={"node_code": "BNG-DXB-001", "include_recent_history": True},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["node_code"] == "BNG-DXB-001"
+    assert len(body["likely_causes"]) >= 1
+    assert len(body["recommended_actions"]) >= 1
+    assert body["model_provider"] == "offline-fallback-v1"
+
+    saved = client.get("/api/recommendations")
+    assert saved.status_code == 200
+    assert len(saved.json()) >= 1
+
+
+def test_analyze_requires_target(client):
+    resp = client.post("/api/analyze", json={})
+    assert resp.status_code == 400

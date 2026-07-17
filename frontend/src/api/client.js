@@ -64,3 +64,24 @@ export function fetchRecommendations(limit = 20) {
 export function fetchNodes() {
   return request("/api/nodes");
 }
+
+export function runAnalysis({ anomalyId, nodeCode, includeRecentHistory = true } = {}) {
+  const body = {
+    include_recent_history: includeRecentHistory,
+  };
+  if (anomalyId != null) body.anomaly_id = anomalyId;
+  if (nodeCode) body.node_code = nodeCode;
+  return request("/api/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function runAnomalyDetection(limit = 500) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    only_unscored: "true",
+  });
+  return request(`/api/anomalies/run?${params}`, { method: "POST" });
+}

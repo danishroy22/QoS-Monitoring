@@ -123,3 +123,21 @@ class DetectionRunResponse(BaseModel):
     anomalies_detected: int
     model_name: str
     skipped_existing: int = 0
+
+
+class AnalyzeRequest(BaseModel):
+    anomaly_id: int | None = None
+    node_code: str | None = Field(default=None, max_length=50)
+    include_recent_history: bool = True
+
+
+class AnalyzeResponse(BaseModel):
+    recommendation_id: int
+    anomaly_id: int
+    node_code: str
+    summary: str
+    likely_causes: list[str]
+    recommended_actions: list[str]
+    severity: str
+    model_provider: str
+    created_at: datetime

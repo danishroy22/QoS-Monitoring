@@ -109,6 +109,7 @@ FYP/
 - **Phase 3 complete:** FastAPI backend, SQLAlchemy models, database, and metric APIs
 - **Phase 5 dashboard complete:** React NOC UI with live metrics, charts, issues, and AI synopsis
 - **Phase 4 complete:** Isolation Forest anomaly detection, hybrid scoring, `/api/anomalies/run`
+- **Phase 6 complete:** Generative AI analysis with offline fallback and dashboard Analyse button
 
 ### Train / run anomaly detection
 
@@ -120,6 +121,16 @@ python -m backend.ml.evaluate --samples 120
 curl -X POST "http://127.0.0.1:8000/api/anomalies/run?limit=500"
 ```
 
+### Run AI analysis
+
+```bash
+# Offline fallback works with no API key
+curl -X POST http://127.0.0.1:8000/api/analyze \
+  -H "Content-Type: application/json" \
+  -d "{\"node_code\": \"BNG-DXB-001\"}"
+```
+
+Optional: set `QOS_OPENAI_API_KEY` in `backend/.env` for live LLM responses.
 ```bash
 pip install -r backend/requirements.txt
 ```
