@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { Server } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   completeSpeedTest,
   fetchRecommendation,
+  fetchSpeedServers,
   measureLatencyPhase,
   measureServerPhase,
   streamDownloadPhase,
@@ -14,6 +16,7 @@ import TestStageProgress, { TEST_STAGES } from "./TestStageProgress";
 const SETTLE_MS = 2800;
 const MIN_INIT_MS = 1200;
 const MIN_SERVER_MS = 1800;
+const SERVER_STORAGE_KEY = "smartqos_server_id";
 
 function wait(ms) {
   return new Promise((resolve) => {
@@ -39,18 +42,21 @@ function assertActive(runId, runIdRef) {
  * Order: init → server → download → upload → latency → jitter → analysis.
  */
 export default function SpeedTestExperience({
-  idleValue = 0,
   onComplete,
   onError,
   autoStart = false,
 }) {
   const [phase, setPhase] = useState(autoStart ? "init" : "idle");
-  const [gaugeValue, setGaugeValue] = useState(autoStart ? 0 : idleValue);
+  const [gaugeValue, setGaugeValue] = useState(0);
   const [gaugeMax, setGaugeMax] = useState(500);
   const [pingMs, setPingMs] = useState(null);
   const [jitterMs, setJitterMs] = useState(null);
   const [packetLossPct, setPacketLossPct] = useState(null);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [servers, setServers] = useState([]);
+  const [serverId, setServerId] = useState(
+    () => localStorage.getItem(SERVER_STORAGE_KEY) || "cloudflare"
+  );
   const timersRef = useRef([]);
   const runIdRef = useRef(0);
   const abortRef = useRef(null);
@@ -64,11 +70,32 @@ export default function SpeedTestExperience({
   }, [onComplete, onError]);
 
   useEffect(() => {
-    if (phase === "idle") {
-      setGaugeValue(idleValue || 0);
-      setGaugeMax(idleValue > 500 ? 1000 : 500);
-    }
-  }, [idleValue, phase]);
+    let cancelled = false;
+    fetchSpeedServers()
+      .then((payload) => {
+        if (cancelled) return;
+        const list = payload?.servers || [];
+        setServers(list);
+        const defaultId = payload?.default_server_id || "cloudflare";
+        const saved = localStorage.getItem(SERVER_STORAGE_KEY);
+        const valid = list.some((s) => s.id === saved);
+        setServerId(valid ? saved : defaultId);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setServers([
+            { id: "cloudflare", name: "Cloudflare", location: "Global CDN" },
+          ]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(SERVER_STORAGE_KEY, serverId);
+  }, [serverId]);
 
   const clearTimers = () => {
     timersRef.current.forEach((id) => {
@@ -84,6 +111,7 @@ export default function SpeedTestExperience({
     clearTimers();
     abortRef.current = new AbortController();
     const { signal } = abortRef.current;
+    const selectedServerId = serverId || "cloudflare";
 
     startedAtRef.current = Date.now();
     setPhase("init");
@@ -101,6 +129,7 @@ export default function SpeedTestExperience({
     }, 250);
     timersRef.current.push(elapsedTimer);
 
+    const selected = servers.find((s) => s.id === selectedServerId);
     const accum = {
       download_mbps: null,
       upload_mbps: null,
@@ -114,18 +143,24 @@ export default function SpeedTestExperience({
       public_ip: null,
       isp_name: null,
       as_info: null,
-      server_label: "cloudflare",
+      server_label: selected
+        ? `${selected.name} · ${selected.location}`
+        : selectedServerId,
       errors: [],
     };
 
     try {
+      // Keep centre value at 0 during initialise / server discovery.
+      setGaugeValue(0);
       const initStart = Date.now();
       await waitMin(initStart, MIN_INIT_MS);
       assertActive(runId, runIdRef);
+      setGaugeValue(0);
 
       setPhase("server");
+      setGaugeValue(0);
       const serverStart = Date.now();
-      const server = await measureServerPhase();
+      const server = await measureServerPhase(selectedServerId);
       assertActive(runId, runIdRef);
       Object.assign(accum, {
         dns_lookup_ms: server.dns_lookup_ms,
@@ -138,8 +173,10 @@ export default function SpeedTestExperience({
         server_label: server.server_label,
       });
       accum.errors.push(...(server.errors ?? []));
+      setGaugeValue(0);
       await waitMin(serverStart, MIN_SERVER_MS);
       assertActive(runId, runIdRef);
+      setGaugeValue(0);
 
       setPhase("download");
       setGaugeValue(0);
@@ -151,7 +188,7 @@ export default function SpeedTestExperience({
             if (event.mbps > 450) setGaugeMax(1000);
           }
         },
-        { signal, quick: false }
+        { signal, quick: false, serverId: selectedServerId }
       );
       assertActive(runId, runIdRef);
       const downloadMbps = downloadFinal?.download_mbps ?? downloadFinal?.mbps ?? 0;
@@ -168,7 +205,7 @@ export default function SpeedTestExperience({
         (event) => {
           if (event.mbps != null) setGaugeValue(event.mbps);
         },
-        { signal, quick: false }
+        { signal, quick: false, serverId: selectedServerId }
       );
       assertActive(runId, runIdRef);
       const uploadMbps = uploadFinal?.upload_mbps ?? uploadFinal?.mbps ?? 0;
@@ -180,7 +217,8 @@ export default function SpeedTestExperience({
 
       setPhase("ping");
       setGaugeMax(100);
-      const latency = await measureLatencyPhase(false);
+      setGaugeValue(0);
+      const latency = await measureLatencyPhase(false, selectedServerId);
       assertActive(runId, runIdRef);
       accum.ping_ms = latency.ping_ms;
       accum.jitter_ms = latency.jitter_ms;
@@ -220,6 +258,7 @@ export default function SpeedTestExperience({
       if (runIdRef.current !== runId || err?.name === "AbortError") return;
       clearTimers();
       setPhase("idle");
+      setGaugeValue(0);
       onErrorRef.current?.(err instanceof Error ? err.message : String(err));
     }
   };
@@ -241,9 +280,36 @@ export default function SpeedTestExperience({
   };
 
   const stageId = normalizeStage(phase);
+  const busy = phase !== "idle" && phase !== "done";
+  const selectedMeta = servers.find((s) => s.id === serverId);
 
   return (
     <div className="sq-test-experience premium">
+      <div className="sq-server-picker">
+        <label htmlFor="sq-server-select">
+          <Server size={15} strokeWidth={2} />
+          Test server
+        </label>
+        <select
+          id="sq-server-select"
+          value={serverId}
+          disabled={busy}
+          onChange={(e) => setServerId(e.target.value)}
+        >
+          {(servers.length
+            ? servers
+            : [{ id: "cloudflare", name: "Cloudflare", location: "Global CDN" }]
+          ).map((server) => (
+            <option key={server.id} value={server.id}>
+              {server.name} — {server.location}
+            </option>
+          ))}
+        </select>
+        {selectedMeta?.upload_note && !busy && (
+          <p className="sq-server-note">{selectedMeta.upload_note}</p>
+        )}
+      </div>
+
       <AnimatePresence mode="wait">
         <motion.div
           key="gauge"
@@ -257,7 +323,7 @@ export default function SpeedTestExperience({
             max={gaugeMax}
             phase={phase}
             onGo={handleGo}
-            disabled={phase !== "idle" && phase !== "done"}
+            disabled={busy}
             pingMs={pingMs}
             jitterMs={jitterMs}
             packetLossPct={packetLossPct}
@@ -272,13 +338,19 @@ export default function SpeedTestExperience({
       </AnimatePresence>
       {(phase === "idle" || phase === "done") && (
         <p className="sq-test-hint">
-          Tap GO to run a full SmartQoS measurement (typically 45–90 seconds).
+          Choose a server, then tap GO for a full SmartQoS measurement (typically 45–90 seconds).
         </p>
       )}
       {phase !== "idle" && phase !== "done" && (
-        <p className="sq-stage-caption">
+        <motion.p
+          className="sq-stage-caption"
+          key={stageId}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           {TEST_STAGES.find((s) => s.id === stageId)?.label || "Testing"}
-        </p>
+        </motion.p>
       )}
     </div>
   );

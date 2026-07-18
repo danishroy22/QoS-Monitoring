@@ -9,9 +9,9 @@ const START_ANGLE = 135; // deg, SVG math coords (0 = east)
 const SWEEP = 270;
 const CX = 200;
 const CY = 200;
-const RADIUS = 148;
-const TRACK_WIDTH = 18;
-const PROGRESS_WIDTH = 20;
+const RADIUS = 152;
+const TRACK_WIDTH = 16;
+const PROGRESS_WIDTH = 22;
 
 function polar(cx, cy, r, angleDeg) {
   const rad = (angleDeg * Math.PI) / 180;
@@ -37,7 +37,9 @@ function phaseMode(phase) {
     return { title: "DOWNLOAD", unit: "Mbps" };
   }
   if (phase === "ai") return { title: "ANALYSIS", unit: "Mbps" };
-  if (phase === "server" || phase === "init") return { title: "READY", unit: "Mbps" };
+  if (phase === "server" || phase === "init" || phase === "idle") {
+    return { title: phase === "idle" ? "READY" : phase === "init" ? "INITIALIZING" : "SERVER", unit: "Mbps" };
+  }
   return { title: "DOWNLOAD", unit: "Mbps" };
 }
 
@@ -67,25 +69,36 @@ export default function Speedometer({
 
   useEffect(() => {
     const target = Math.max(0, Number(value) || 0);
+    // Snap to zero during init / server discovery so the needle does not linger.
+    const snap = target === 0 || phase === "init" || phase === "server" || phase === "idle";
+    if (snap && target === 0) {
+      motionValue.set(0);
+      return undefined;
+    }
     const controls = animate(motionValue, target, {
       type: "spring",
-      stiffness: 48,
-      damping: 18,
-      mass: 0.85,
+      stiffness: 36,
+      damping: 22,
+      mass: 1.05,
     });
     return controls.stop;
-  }, [value, motionValue]);
+  }, [value, motionValue, phase]);
 
   useEffect(() => {
-    const ratio = Math.min(1, Math.max(0.001, (Number(value) || 0) / gaugeMax));
-    const controls = animate(progressMV, ratio, {
+    const ratio = Math.min(1, Math.max(0, (Number(value) || 0) / gaugeMax));
+    const snap = ratio <= 0.001 || phase === "init" || phase === "server" || phase === "idle";
+    if (snap && ratio <= 0.001) {
+      progressMV.set(0.001);
+      return undefined;
+    }
+    const controls = animate(progressMV, Math.max(0.001, ratio), {
       type: "spring",
-      stiffness: 42,
-      damping: 20,
-      mass: 0.9,
+      stiffness: 32,
+      damping: 24,
+      mass: 1.1,
     });
     return controls.stop;
-  }, [value, gaugeMax, progressMV]);
+  }, [value, gaugeMax, progressMV, phase]);
 
   const arcLength = useMemo(() => (SWEEP * Math.PI * RADIUS) / 180, []);
   const trackPath = useMemo(
@@ -155,8 +168,8 @@ export default function Speedometer({
               <stop offset="70%" stopColor="rgba(5,8,22,0.2)" />
               <stop offset="100%" stopColor="rgba(5,8,22,0.65)" />
             </radialGradient>
-            <filter id={`sq-glow-${uid}`} x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur stdDeviation="4.5" result="blur" />
+            <filter id={`sq-glow-${uid}`} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="5.5" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />

@@ -19,15 +19,26 @@ from app.schemas.internet import (
     SpeedTestRequest,
     SpeedTestRunResponse,
     SpeedTestServerPhaseOut,
+    SpeedTestServersResponse,
     StatisticsResponse,
 )
 from app.services import internet_service
+from measurement.servers import DEFAULT_SERVER_ID
 
 router = APIRouter(tags=["internet-quality"])
 
 
 def _sse_event(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
+
+
+@router.get("/speedtest/servers", response_model=SpeedTestServersResponse)
+def speedtest_servers() -> SpeedTestServersResponse:
+    """List available public measurement servers."""
+    return SpeedTestServersResponse(
+        servers=internet_service.list_speed_servers(),
+        default_server_id=DEFAULT_SERVER_ID,
+    )
 
 
 @router.post("/speedtest", response_model=SpeedTestRunResponse)
@@ -37,21 +48,27 @@ def speedtest(
 ) -> SpeedTestRunResponse:
     """Run a full network measurement and store the result."""
     quick = payload.quick if payload else False
-    return internet_service.run_speedtest(db, quick=quick)
+    server_id = payload.server_id if payload else None
+    return internet_service.run_speedtest(db, quick=quick, server_id=server_id)
 
 
 @router.post("/speedtest/measure/server", response_model=SpeedTestServerPhaseOut)
-def speedtest_server_phase() -> SpeedTestServerPhaseOut:
+def speedtest_server_phase(
+    server_id: str | None = Query(default=None),
+) -> SpeedTestServerPhaseOut:
     """DNS, HTTP, and ISP lookup for the finding-server stage."""
-    return internet_service.measure_server_phase()
+    return internet_service.measure_server_phase(server_id=server_id)
 
 
 @router.get("/speedtest/stream/download")
-def speedtest_stream_download(quick: bool = Query(default=False)) -> StreamingResponse:
+def speedtest_stream_download(
+    quick: bool = Query(default=False),
+    server_id: str | None = Query(default=None),
+) -> StreamingResponse:
     """Stream live download Mbps while measuring throughput."""
 
     def generate():
-        for event in internet_service.iter_download_phase(quick=quick):
+        for event in internet_service.iter_download_phase(quick=quick, server_id=server_id):
             yield _sse_event(event)
 
     return StreamingResponse(
@@ -62,11 +79,14 @@ def speedtest_stream_download(quick: bool = Query(default=False)) -> StreamingRe
 
 
 @router.get("/speedtest/stream/upload")
-def speedtest_stream_upload(quick: bool = Query(default=False)) -> StreamingResponse:
+def speedtest_stream_upload(
+    quick: bool = Query(default=False),
+    server_id: str | None = Query(default=None),
+) -> StreamingResponse:
     """Stream live upload Mbps while measuring throughput."""
 
     def generate():
-        for event in internet_service.iter_upload_phase(quick=quick):
+        for event in internet_service.iter_upload_phase(quick=quick, server_id=server_id):
             yield _sse_event(event)
 
     return StreamingResponse(
@@ -79,9 +99,10 @@ def speedtest_stream_upload(quick: bool = Query(default=False)) -> StreamingResp
 @router.post("/speedtest/measure/latency", response_model=SpeedTestLatencyPhaseOut)
 def speedtest_latency_phase(
     quick: bool = Query(default=False),
+    server_id: str | None = Query(default=None),
 ) -> SpeedTestLatencyPhaseOut:
-    """Measure ping, jitter, and packet loss."""
-    return internet_service.measure_latency_phase(quick=quick)
+    """Measure ping, jitter, and packet loss against the selected server."""
+    return internet_service.measure_latency_phase(quick=quick, server_id=server_id)
 
 
 @router.post("/speedtest/complete", response_model=SpeedTestRunResponse)

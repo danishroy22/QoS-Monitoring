@@ -19,6 +19,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from measurement.servers import get_server
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_PING_HOST = "1.1.1.1"
@@ -120,13 +122,31 @@ def measure_download_speed_multi(
     bytes_per_pass: int = DOWNLOAD_PASS_BYTES_FULL,
     passes: int = DOWNLOAD_PASSES_FULL,
     download_base_url: str = "https://speed.cloudflare.com/__down",
+    server_id: str | None = None,
 ) -> float:
     """Average throughput across multiple large download passes."""
     speeds: list[float] = []
-    for _ in range(passes):
-        url = f"{download_base_url}?bytes={bytes_per_pass}"
-        speeds.append(measure_download_speed(url))
+    for event in iter_download_progress(
+        bytes_per_pass=bytes_per_pass,
+        passes=passes,
+        download_base_url=download_base_url,
+        server_id=server_id,
+    ):
+        if event.get("done") and event.get("download_mbps") is not None:
+            return float(event["download_mbps"])
+        if event.get("done") and event.get("mbps") is not None:
+            return float(event["mbps"])
     return statistics.mean(speeds) if speeds else 0.0
+
+
+def _download_url_for_pass(server: dict[str, Any], pass_idx: int, bytes_per_pass: int) -> str:
+    if server.get("download_mode") == "bytes":
+        base = server.get("download_base_url") or "https://speed.cloudflare.com/__down"
+        return f"{base}?bytes={bytes_per_pass}"
+    urls = server.get("download_urls") or []
+    if not urls:
+        return f"https://speed.cloudflare.com/__down?bytes={bytes_per_pass}"
+    return urls[pass_idx % len(urls)]
 
 
 def iter_download_progress(
@@ -134,20 +154,26 @@ def iter_download_progress(
     bytes_per_pass: int = DOWNLOAD_PASS_BYTES_FULL,
     passes: int = DOWNLOAD_PASSES_FULL,
     download_base_url: str = "https://speed.cloudflare.com/__down",
+    server_id: str | None = None,
 ):
     """Yield live download Mbps updates, then a final averaged result."""
+    server = get_server(server_id)
+    if server.get("download_mode") == "bytes" and download_base_url:
+        # Allow explicit base override for legacy callers.
+        server = {**server, "download_base_url": download_base_url}
+
     pass_speeds: list[float] = []
     errors: list[str] = []
 
     for pass_idx in range(passes):
-        url = f"{download_base_url}?bytes={bytes_per_pass}"
+        url = _download_url_for_pass(server, pass_idx, bytes_per_pass)
         request = urllib.request.Request(url, headers={"User-Agent": "FYP-InternetQuality/1.0"})
         started_pass = time.perf_counter()
         total_bytes = 0
         try:
             with urllib.request.urlopen(request, timeout=120.0) as response:
-                while True:
-                    chunk = response.read(DOWNLOAD_CHUNK_BYTES)
+                while total_bytes < bytes_per_pass:
+                    chunk = response.read(min(DOWNLOAD_CHUNK_BYTES, bytes_per_pass - total_bytes))
                     if not chunk:
                         break
                     total_bytes += len(chunk)
@@ -160,10 +186,12 @@ def iter_download_progress(
                         "bytes": total_bytes,
                         "mbps": round(current_mbps, 2),
                         "done": False,
+                        "server_id": server["id"],
                     }
             pass_elapsed = time.perf_counter() - started_pass
             pass_mbps = (total_bytes * 8 / 1_000_000.0) / max(pass_elapsed, 0.001)
-            pass_speeds.append(pass_mbps)
+            if total_bytes > 0:
+                pass_speeds.append(pass_mbps)
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             errors.append(f"download pass {pass_idx + 1}: {exc}")
             logger.warning("Download pass failed: %s", exc)
@@ -175,6 +203,7 @@ def iter_download_progress(
         "download_mbps": final,
         "done": True,
         "errors": errors,
+        "server_id": server["id"],
     }
 
 
@@ -191,8 +220,11 @@ def iter_upload_progress(
     total_bytes: int = UPLOAD_TOTAL_BYTES_FULL,
     chunk_bytes: int = UPLOAD_CHUNK_BYTES,
     upload_url: str = DEFAULT_UPLOAD_URL,
+    server_id: str | None = None,
 ):
     """Yield live upload Mbps updates while sending chunked payloads."""
+    server = get_server(server_id)
+    target_url = server.get("upload_url") or upload_url or DEFAULT_UPLOAD_URL
     errors: list[str] = []
     sent = 0
     started = time.perf_counter()
@@ -202,7 +234,7 @@ def iter_upload_progress(
         while sent < total_bytes:
             chunk_size = min(chunk_bytes, total_bytes - sent)
             payload = payload_template[:chunk_size]
-            _http_post(upload_url, payload, timeout=120.0)
+            _http_post(target_url, payload, timeout=120.0)
             sent += chunk_size
             elapsed = time.perf_counter() - started
             current_mbps = (sent * 8 / 1_000_000.0) / max(elapsed, 0.001)
@@ -211,6 +243,7 @@ def iter_upload_progress(
                 "bytes": sent,
                 "mbps": round(current_mbps, 2),
                 "done": False,
+                "server_id": server["id"],
             }
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         errors.append(f"upload: {exc}")
@@ -224,11 +257,13 @@ def iter_upload_progress(
         "upload_mbps": final,
         "done": True,
         "errors": errors,
+        "server_id": server["id"],
     }
 
 
-def run_server_probe() -> dict[str, Any]:
+def run_server_probe(*, server_id: str | None = None) -> dict[str, Any]:
     """DNS, HTTP, IP version, and ISP lookup for the 'Finding Server' phase."""
+    server = get_server(server_id)
     errors: list[str] = []
     dns_lookup_ms: float | None = None
     http_response_ms: float | None = None
@@ -239,12 +274,14 @@ def run_server_probe() -> dict[str, Any]:
     as_info: str | None = None
 
     try:
-        dns_lookup_ms = round(measure_dns_lookup(), 2)
+        dns_lookup_ms = round(measure_dns_lookup(server.get("dns_host") or DEFAULT_DNS_HOST), 2)
     except (OSError, socket.gaierror, ValueError) as exc:
         errors.append(f"dns: {exc}")
 
     try:
-        http_response_ms = round(measure_http_response(), 2)
+        http_response_ms = round(
+            measure_http_response(server.get("http_url") or DEFAULT_HTTP_URL), 2
+        )
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         errors.append(f"http: {exc}")
 
@@ -261,6 +298,7 @@ def run_server_probe() -> dict[str, Any]:
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         errors.append(f"isp: {exc}")
 
+    label = f"{server['name']} · {server['location']}"
     return {
         "dns_lookup_ms": dns_lookup_ms,
         "http_response_ms": http_response_ms,
@@ -269,20 +307,28 @@ def run_server_probe() -> dict[str, Any]:
         "public_ip": public_ip,
         "isp_name": isp_name,
         "as_info": as_info,
-        "server_label": "cloudflare",
+        "server_label": label,
+        "server_id": server["id"],
         "errors": errors,
     }
 
 
-def run_latency_probe(*, ping_host: str = DEFAULT_PING_HOST, count: int = PING_COUNT_FULL) -> dict[str, Any]:
+def run_latency_probe(
+    *,
+    ping_host: str | None = None,
+    count: int = PING_COUNT_FULL,
+    server_id: str | None = None,
+) -> dict[str, Any]:
     """Ping, jitter, and packet loss for the latency phase."""
+    server = get_server(server_id)
+    host = ping_host or server.get("ping_host") or DEFAULT_PING_HOST
     errors: list[str] = []
     ping_ms: float | None = None
     jitter_ms: float | None = None
     packet_loss_pct: float | None = None
 
     try:
-        ping_ms, jitter_ms, packet_loss_pct = measure_ping(ping_host, count=count)
+        ping_ms, jitter_ms, packet_loss_pct = measure_ping(host, count=count)
         if ping_ms is not None:
             ping_ms = round(ping_ms, 2)
         if jitter_ms is not None:
@@ -297,6 +343,7 @@ def run_latency_probe(*, ping_host: str = DEFAULT_PING_HOST, count: int = PING_C
         "jitter_ms": jitter_ms,
         "packet_loss_pct": packet_loss_pct,
         "errors": errors,
+        "server_id": server["id"],
     }
 
 
@@ -395,14 +442,17 @@ class NetworkMeasurementEngine:
     def __init__(
         self,
         *,
-        ping_host: str = DEFAULT_PING_HOST,
+        ping_host: str | None = None,
         download_url: str = DEFAULT_DOWNLOAD_URL,
-        upload_url: str = DEFAULT_UPLOAD_URL,
+        upload_url: str | None = None,
         upload_bytes: int = UPLOAD_TOTAL_BYTES_FULL,
         quick: bool = False,
+        server_id: str | None = None,
     ) -> None:
-        self.ping_host = ping_host
-        self.upload_url = upload_url
+        self.server = get_server(server_id)
+        self.server_id = self.server["id"]
+        self.ping_host = ping_host or self.server.get("ping_host") or DEFAULT_PING_HOST
+        self.upload_url = upload_url or self.server.get("upload_url") or DEFAULT_UPLOAD_URL
         self.quick = quick
         if quick:
             self.download_bytes_per_pass = DOWNLOAD_PASS_BYTES_QUICK
@@ -418,14 +468,19 @@ class NetworkMeasurementEngine:
 
     def run(self) -> MeasurementResult:
         result = MeasurementResult(timestamp=_now())
+        result.server_label = f"{self.server['name']} · {self.server['location']}"
 
         try:
-            result.dns_lookup_ms = round(measure_dns_lookup(), 2)
+            result.dns_lookup_ms = round(
+                measure_dns_lookup(self.server.get("dns_host") or DEFAULT_DNS_HOST), 2
+            )
         except Exception as exc:  # noqa: BLE001
             result.errors.append(f"dns: {exc}")
 
         try:
-            result.http_response_ms = round(measure_http_response(), 2)
+            result.http_response_ms = round(
+                measure_http_response(self.server.get("http_url") or DEFAULT_HTTP_URL), 2
+            )
         except Exception as exc:  # noqa: BLE001
             result.errors.append(f"http: {exc}")
 
@@ -434,6 +489,7 @@ class NetworkMeasurementEngine:
                 measure_download_speed_multi(
                     bytes_per_pass=self.download_bytes_per_pass,
                     passes=self.download_passes,
+                    server_id=self.server_id,
                 ),
                 2,
             )
@@ -445,6 +501,7 @@ class NetworkMeasurementEngine:
             for event in iter_upload_progress(
                 total_bytes=self.upload_total_bytes,
                 upload_url=self.upload_url,
+                server_id=self.server_id,
             ):
                 if event.get("done"):
                     final_upload = event.get("upload_mbps")

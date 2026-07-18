@@ -13,6 +13,23 @@ class SpeedTestRequest(BaseModel):
         default=False,
         description="Faster test with smaller download/upload payloads",
     )
+    server_id: str | None = Field(
+        default=None,
+        description="Speed-test server id from GET /speedtest/servers",
+    )
+
+
+class SpeedTestServerOption(BaseModel):
+    id: str
+    name: str
+    location: str
+    supports_upload: bool = True
+    upload_note: str | None = None
+
+
+class SpeedTestServersResponse(BaseModel):
+    servers: list[SpeedTestServerOption]
+    default_server_id: str = "cloudflare"
 
 
 class SpeedTestPhaseQuery(BaseModel):
@@ -28,6 +45,7 @@ class SpeedTestServerPhaseOut(BaseModel):
     isp_name: str | None = None
     as_info: str | None = None
     server_label: str = "cloudflare"
+    server_id: str | None = None
     errors: list[str] = []
 
 

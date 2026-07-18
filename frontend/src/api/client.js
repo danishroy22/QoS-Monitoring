@@ -46,20 +46,27 @@ export function fetchDashboard() {
   return request("/dashboard");
 }
 
-export function runSpeedTest(quick = false) {
+export function runSpeedTest(quick = false, serverId = null) {
   return request("/speedtest", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ quick }),
+    body: JSON.stringify({ quick, server_id: serverId || undefined }),
   });
 }
 
-export function measureServerPhase() {
-  return request("/speedtest/measure/server", { method: "POST" });
+export function fetchSpeedServers() {
+  return request("/speedtest/servers");
 }
 
-export function measureLatencyPhase(quick = false) {
-  return request(`/speedtest/measure/latency?quick=${quick ? "true" : "false"}`, {
+export function measureServerPhase(serverId = null) {
+  const qs = serverId ? `?server_id=${encodeURIComponent(serverId)}` : "";
+  return request(`/speedtest/measure/server${qs}`, { method: "POST" });
+}
+
+export function measureLatencyPhase(quick = false, serverId = null) {
+  const params = new URLSearchParams({ quick: quick ? "true" : "false" });
+  if (serverId) params.set("server_id", serverId);
+  return request(`/speedtest/measure/latency?${params}`, {
     method: "POST",
   });
 }
@@ -72,8 +79,11 @@ export function completeSpeedTest(payload) {
   });
 }
 
-async function consumeSseStream(path, onEvent, { signal, quick = false } = {}) {
-  const qs = quick ? "?quick=true" : "";
+async function consumeSseStream(path, onEvent, { signal, quick = false, serverId = null } = {}) {
+  const params = new URLSearchParams();
+  if (quick) params.set("quick", "true");
+  if (serverId) params.set("server_id", serverId);
+  const qs = params.toString() ? `?${params}` : "";
   const url = `${API_BASE}${path}${qs}`;
   let response;
   try {

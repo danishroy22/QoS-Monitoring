@@ -1,14 +1,13 @@
 import { formatDateTime, formatNumber, ratingClass } from "../utils/format";
+import GlassCard from "./ui/GlassCard";
+import PanelHeader from "./ui/PanelHeader";
 
 export default function HistoryTable({ history }) {
   const rows = Array.isArray(history) ? [...history].reverse() : [];
 
   return (
-    <section className="iq-panel glass">
-      <div className="iq-panel-head">
-        <h2>History</h2>
-        <p>Stored measurement results</p>
-      </div>
+    <GlassCard className="iq-panel" delay={0.16}>
+      <PanelHeader title="Measurement History" subtitle="Stored speed test results" />
       {rows.length === 0 ? (
         <p className="iq-empty">No history yet.</p>
       ) : (
@@ -28,10 +27,10 @@ export default function HistoryTable({ history }) {
               {rows.map((row) => (
                 <tr key={row.id}>
                   <td>{formatDateTime(row.timestamp)}</td>
-                  <td>{formatNumber(row.download_mbps)} Mbps</td>
-                  <td>{formatNumber(row.upload_mbps)} Mbps</td>
-                  <td>{formatNumber(row.ping_ms)} ms</td>
-                  <td>{formatNumber(row.packet_loss_pct, 2)}%</td>
+                  <td className="mono">{formatNumber(row.download_mbps)}</td>
+                  <td className="mono">{formatNumber(row.upload_mbps)}</td>
+                  <td className="mono">{formatNumber(row.ping_ms)}</td>
+                  <td className="mono">{formatNumber(row.packet_loss_pct, 2)}%</td>
                   <td>
                     <span className={`iq-pill ${ratingClass(row.overall_rating)}`}>
                       {row.overall_score ?? "—"} {row.overall_rating || ""}
@@ -43,6 +42,6 @@ export default function HistoryTable({ history }) {
           </table>
         </div>
       )}
-    </section>
+    </GlassCard>
   );
 }

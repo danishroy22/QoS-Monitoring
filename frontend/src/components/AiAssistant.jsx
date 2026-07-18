@@ -1,32 +1,42 @@
+import { Sparkles } from "lucide-react";
+import GlassCard from "./ui/GlassCard";
+import LoadingPulse from "./ui/LoadingPulse";
+import PanelHeader from "./ui/PanelHeader";
+
 export default function AiAssistant({ recommendation, loading }) {
   if (loading) {
     return (
-      <section className="iq-panel glass ai">
-        <div className="iq-panel-head">
-          <h2>AI Network Analysis</h2>
-        </div>
-        <p className="iq-empty">Generating analysis…</p>
-      </section>
+      <GlassCard className="iq-panel ai" delay={0.15}>
+        <PanelHeader
+          title="AI Network Analysis"
+          subtitle="Generating insights from your latest measurements"
+          action={<Sparkles size={18} color="var(--accent)" />}
+        />
+        <LoadingPulse label="Analysing connection quality…" compact />
+      </GlassCard>
     );
   }
 
   if (!recommendation) {
     return (
-      <section className="iq-panel glass ai">
-        <div className="iq-panel-head">
-          <h2>AI Network Analysis</h2>
-        </div>
-        <p className="iq-empty">Run a test to unlock AI guidance.</p>
-      </section>
+      <GlassCard className="iq-panel ai" delay={0.15}>
+        <PanelHeader
+          title="AI Network Analysis"
+          subtitle="Run a test to unlock AI guidance"
+          action={<Sparkles size={18} color="var(--muted)" />}
+        />
+        <p className="iq-empty">No analysis yet. Complete a speed test to receive recommendations.</p>
+      </GlassCard>
     );
   }
 
   return (
-    <section className="iq-panel glass ai">
-      <div className="iq-panel-head">
-        <h2>AI Network Analysis</h2>
-        <p>{recommendation.model_provider}</p>
-      </div>
+    <GlassCard className="iq-panel ai" delay={0.15}>
+      <PanelHeader
+        title="AI Network Analysis"
+        subtitle={recommendation.model_provider}
+        action={<Sparkles size={18} color="var(--accent)" />}
+      />
 
       <div className="ai-block">
         <h3>Analysis</h3>
@@ -51,6 +61,6 @@ export default function AiAssistant({ recommendation, loading }) {
           </ul>
         </div>
       </div>
-    </section>
+    </GlassCard>
   );
 }

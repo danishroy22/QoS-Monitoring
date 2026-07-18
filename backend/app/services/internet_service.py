@@ -38,6 +38,7 @@ from measurement.engine import (
     PING_COUNT_FULL,
     PING_COUNT_QUICK,
 )
+from measurement.servers import list_servers
 from measurement.qos_analysis import analyze_qos
 
 
@@ -65,39 +66,49 @@ def _row_dict(row: SpeedTestResult) -> dict:
     }
 
 
-def run_speedtest(db: Session, *, quick: bool = False) -> SpeedTestRunResponse:
-    engine = NetworkMeasurementEngine(quick=quick)
+def run_speedtest(
+    db: Session, *, quick: bool = False, server_id: str | None = None
+) -> SpeedTestRunResponse:
+    engine = NetworkMeasurementEngine(quick=quick, server_id=server_id)
     measured = engine.run()
     return _persist_measurement(db, measured)
 
 
-def measure_server_phase() -> SpeedTestServerPhaseOut:
-    payload = run_server_probe()
+def list_speed_servers() -> list[dict]:
+    return list_servers()
+
+
+def measure_server_phase(*, server_id: str | None = None) -> SpeedTestServerPhaseOut:
+    payload = run_server_probe(server_id=server_id)
     return SpeedTestServerPhaseOut.model_validate(payload)
 
 
-def measure_latency_phase(*, quick: bool = False) -> SpeedTestLatencyPhaseOut:
+def measure_latency_phase(
+    *, quick: bool = False, server_id: str | None = None
+) -> SpeedTestLatencyPhaseOut:
     count = PING_COUNT_QUICK if quick else PING_COUNT_FULL
-    payload = run_latency_probe(count=count)
+    payload = run_latency_probe(count=count, server_id=server_id)
     return SpeedTestLatencyPhaseOut.model_validate(payload)
 
 
-def iter_download_phase(*, quick: bool = False):
+def iter_download_phase(*, quick: bool = False, server_id: str | None = None):
     if quick:
         yield from iter_download_progress(
             bytes_per_pass=DOWNLOAD_PASS_BYTES_QUICK,
             passes=DOWNLOAD_PASSES_QUICK,
+            server_id=server_id,
         )
     else:
         yield from iter_download_progress(
             bytes_per_pass=DOWNLOAD_PASS_BYTES_FULL,
             passes=DOWNLOAD_PASSES_FULL,
+            server_id=server_id,
         )
 
 
-def iter_upload_phase(*, quick: bool = False):
+def iter_upload_phase(*, quick: bool = False, server_id: str | None = None):
     total = UPLOAD_TOTAL_BYTES_QUICK if quick else UPLOAD_TOTAL_BYTES_FULL
-    yield from iter_upload_progress(total_bytes=total)
+    yield from iter_upload_progress(total_bytes=total, server_id=server_id)
 
 
 def complete_speedtest(db: Session, payload: SpeedTestCompleteRequest) -> SpeedTestRunResponse:
