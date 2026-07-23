@@ -15,6 +15,7 @@ from app.schemas.internet import (
     HistoryResponse,
     IspResponse,
     SpeedTestCompleteRequest,
+    SpeedTestFindServerResponse,
     SpeedTestLatencyPhaseOut,
     SpeedTestRequest,
     SpeedTestRunResponse,
@@ -34,11 +35,18 @@ def _sse_event(payload: dict) -> str:
 
 @router.get("/speedtest/servers", response_model=SpeedTestServersResponse)
 def speedtest_servers() -> SpeedTestServersResponse:
-    """List available public measurement servers."""
+    """List Mauritius broadband test servers from local configuration."""
     return SpeedTestServersResponse(
         servers=internet_service.list_speed_servers(),
         default_server_id=DEFAULT_SERVER_ID,
+        auto_select=True,
     )
+
+
+@router.post("/speedtest/find-server", response_model=SpeedTestFindServerResponse)
+def speedtest_find_server() -> SpeedTestFindServerResponse:
+    """Simulate latency probes and recommend the best Mauritius server."""
+    return SpeedTestFindServerResponse.model_validate(internet_service.find_best_server())
 
 
 @router.post("/speedtest", response_model=SpeedTestRunResponse)

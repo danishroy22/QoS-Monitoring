@@ -58,6 +58,10 @@ export function fetchSpeedServers() {
   return request("/speedtest/servers");
 }
 
+export function findBestServer() {
+  return request("/speedtest/find-server", { method: "POST" });
+}
+
 export function measureServerPhase(serverId = null) {
   const qs = serverId ? `?server_id=${encodeURIComponent(serverId)}` : "";
   return request(`/speedtest/measure/server${qs}`, { method: "POST" });

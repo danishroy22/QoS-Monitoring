@@ -1,14 +1,14 @@
+import { Check } from "lucide-react";
 import { motion } from "framer-motion";
 
 /** Horizontal stage rail under the premium speedometer. */
 export const TEST_STAGES = [
   { id: "init", label: "Initializing" },
-  { id: "server", label: "Finding Server" },
+  { id: "server", label: "Finding Best Server" },
   { id: "download", label: "Download" },
   { id: "upload", label: "Upload" },
-  { id: "ping", label: "Latency" },
-  { id: "jitter", label: "Jitter" },
-  { id: "ai", label: "Analysis" },
+  { id: "ping", label: "Ping" },
+  { id: "ai", label: "AI Analysis" },
 ];
 
 export default function TestStageProgress({ currentStageId }) {
@@ -26,7 +26,7 @@ export default function TestStageProgress({ currentStageId }) {
           animate={{
             width: `${(currentIndex / Math.max(TEST_STAGES.length - 1, 1)) * 100}%`,
           }}
-          transition={{ type: "spring", stiffness: 60, damping: 18 }}
+          transition={{ type: "spring", stiffness: 55, damping: 20 }}
         />
       </div>
       <div className="sq-stage-steps">
@@ -38,12 +38,12 @@ export default function TestStageProgress({ currentStageId }) {
               key={stage.id}
               className={`sq-stage-step ${state}`}
               role="listitem"
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.04 }}
+              transition={{ delay: index * 0.045, duration: 0.35 }}
             >
-              <span className="sq-stage-dot">
-                {state === "done" ? "✓" : index + 1}
+              <span className="sq-stage-dot" aria-hidden="true">
+                {state === "done" ? <Check size={14} strokeWidth={2.5} /> : null}
                 {state === "active" && <span className="sq-stage-pulse" />}
               </span>
               <span className="sq-stage-label">{stage.label}</span>

@@ -1,22 +1,24 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Server } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   completeSpeedTest,
   fetchRecommendation,
   fetchSpeedServers,
+  findBestServer,
   measureLatencyPhase,
   measureServerPhase,
   streamDownloadPhase,
   streamUploadPhase,
 } from "../api/client";
+import FindServerPanel from "./FindServerPanel";
+import MauritiusServerPicker from "./MauritiusServerPicker";
 import Speedometer from "./Speedometer";
-import TestStageProgress, { TEST_STAGES } from "./TestStageProgress";
+import TestStageProgress from "./TestStageProgress";
 
 const SETTLE_MS = 2800;
-const MIN_INIT_MS = 1200;
-const MIN_SERVER_MS = 1800;
-const SERVER_STORAGE_KEY = "smartqos_server_id";
+const MIN_INIT_MS = 1000;
+const SERVER_STORAGE_KEY = "smartqos_mu_server_id";
+const AUTO_ID = "auto";
 
 function wait(ms) {
   return new Promise((resolve) => {
@@ -38,36 +40,75 @@ function assertActive(runId, runIdRef) {
 }
 
 /**
- * Phased speed-test experience driven by real backend measurements.
- * Order: init → server → download → upload → latency → jitter → analysis.
+ * Mauritius-focused speed-test experience.
+ * On GO: blank live cards, then populate them as readings arrive.
  */
 export default function SpeedTestExperience({
   onComplete,
   onError,
+  onLiveUpdate,
   autoStart = false,
 }) {
   const [phase, setPhase] = useState(autoStart ? "init" : "idle");
   const [gaugeValue, setGaugeValue] = useState(0);
   const [gaugeMax, setGaugeMax] = useState(500);
+  const [downloadMbps, setDownloadMbps] = useState(null);
+  const [uploadMbps, setUploadMbps] = useState(null);
   const [pingMs, setPingMs] = useState(null);
   const [jitterMs, setJitterMs] = useState(null);
   const [packetLossPct, setPacketLossPct] = useState(null);
-  const [elapsedSec, setElapsedSec] = useState(0);
   const [servers, setServers] = useState([]);
-  const [serverId, setServerId] = useState(
-    () => localStorage.getItem(SERVER_STORAGE_KEY) || "cloudflare"
+  const [preferredServerId, setPreferredServerId] = useState(
+    () => localStorage.getItem(SERVER_STORAGE_KEY) || AUTO_ID
   );
+  const [activeServer, setActiveServer] = useState(null);
+  const [ispName, setIspName] = useState(null);
+  const [publicIp, setPublicIp] = useState(null);
+  const [findProbes, setFindProbes] = useState([]);
+  const [findSelected, setFindSelected] = useState(null);
+  const [showFindPanel, setShowFindPanel] = useState(false);
+  const [sessionActive, setSessionActive] = useState(false);
+
   const timersRef = useRef([]);
   const runIdRef = useRef(0);
   const abortRef = useRef(null);
   const startedAtRef = useRef(0);
   const onCompleteRef = useRef(onComplete);
   const onErrorRef = useRef(onError);
+  const onLiveUpdateRef = useRef(onLiveUpdate);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
     onErrorRef.current = onError;
-  }, [onComplete, onError]);
+    onLiveUpdateRef.current = onLiveUpdate;
+  }, [onComplete, onError, onLiveUpdate]);
+
+  useEffect(() => {
+    onLiveUpdateRef.current?.({
+      active: sessionActive,
+      phase,
+      download_mbps: downloadMbps,
+      upload_mbps: uploadMbps,
+      ping_ms: pingMs,
+      jitter_ms: jitterMs,
+      packet_loss_pct: packetLossPct,
+      isp_name: ispName,
+      public_ip: publicIp,
+      server_name: activeServer?.name ?? null,
+      server_location: activeServer?.location ?? null,
+    });
+  }, [
+    sessionActive,
+    phase,
+    downloadMbps,
+    uploadMbps,
+    pingMs,
+    jitterMs,
+    packetLossPct,
+    ispName,
+    publicIp,
+    activeServer,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,17 +117,12 @@ export default function SpeedTestExperience({
         if (cancelled) return;
         const list = payload?.servers || [];
         setServers(list);
-        const defaultId = payload?.default_server_id || "cloudflare";
-        const saved = localStorage.getItem(SERVER_STORAGE_KEY);
-        const valid = list.some((s) => s.id === saved);
-        setServerId(valid ? saved : defaultId);
+        const saved = localStorage.getItem(SERVER_STORAGE_KEY) || AUTO_ID;
+        const valid = saved === AUTO_ID || list.some((s) => s.id === saved);
+        setPreferredServerId(valid ? saved : AUTO_ID);
       })
       .catch(() => {
-        if (!cancelled) {
-          setServers([
-            { id: "cloudflare", name: "Cloudflare", location: "Global CDN" },
-          ]);
-        }
+        if (!cancelled) setServers([]);
       });
     return () => {
       cancelled = true;
@@ -94,8 +130,8 @@ export default function SpeedTestExperience({
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(SERVER_STORAGE_KEY, serverId);
-  }, [serverId]);
+    localStorage.setItem(SERVER_STORAGE_KEY, preferredServerId);
+  }, [preferredServerId]);
 
   const clearTimers = () => {
     timersRef.current.forEach((id) => {
@@ -107,29 +143,34 @@ export default function SpeedTestExperience({
     abortRef.current = null;
   };
 
+  const resetSessionCards = () => {
+    setDownloadMbps(null);
+    setUploadMbps(null);
+    setPingMs(null);
+    setJitterMs(null);
+    setPacketLossPct(null);
+    setIspName(null);
+    setPublicIp(null);
+    setActiveServer(null);
+    setFindProbes([]);
+    setFindSelected(null);
+  };
+
   const startTest = async (runId) => {
     clearTimers();
     abortRef.current = new AbortController();
     const { signal } = abortRef.current;
-    const selectedServerId = serverId || "cloudflare";
 
+    // New session: blank cards immediately, then fill in real time.
     startedAtRef.current = Date.now();
+    setSessionActive(true);
     setPhase("init");
     setGaugeValue(0);
     setGaugeMax(500);
-    setPingMs(null);
-    setJitterMs(null);
-    setPacketLossPct(null);
-    setElapsedSec(0);
+    resetSessionCards();
+    setShowFindPanel(false);
     onErrorRef.current?.(null);
 
-    const elapsedTimer = window.setInterval(() => {
-      if (runIdRef.current !== runId) return;
-      setElapsedSec(Math.floor((Date.now() - startedAtRef.current) / 1000));
-    }, 250);
-    timersRef.current.push(elapsedTimer);
-
-    const selected = servers.find((s) => s.id === selectedServerId);
     const accum = {
       download_mbps: null,
       upload_mbps: null,
@@ -143,23 +184,57 @@ export default function SpeedTestExperience({
       public_ip: null,
       isp_name: null,
       as_info: null,
-      server_label: selected
-        ? `${selected.name} · ${selected.location}`
-        : selectedServerId,
+      server_label: "Mauritius",
       errors: [],
     };
 
     try {
-      // Keep centre value at 0 during initialise / server discovery.
-      setGaugeValue(0);
       const initStart = Date.now();
       await waitMin(initStart, MIN_INIT_MS);
       assertActive(runId, runIdRef);
-      setGaugeValue(0);
 
       setPhase("server");
+      setShowFindPanel(true);
       setGaugeValue(0);
-      const serverStart = Date.now();
+
+      const probeResult = await findBestServer();
+      assertActive(runId, runIdRef);
+      const probes = probeResult?.probes || [];
+      setFindProbes(probes);
+      await wait(Math.max(900, probes.length * 180));
+      assertActive(runId, runIdRef);
+
+      const manual =
+        preferredServerId !== AUTO_ID
+          ? probes.find((p) => p.id === preferredServerId)
+          : null;
+      const chosen =
+        manual ||
+        probeResult?.best_server ||
+        probes[0] ||
+        servers.find((s) => s.id === preferredServerId) ||
+        servers[0];
+
+      if (!chosen) {
+        throw new Error("No Mauritius test servers are configured.");
+      }
+
+      const chosenWithLatency = {
+        ...chosen,
+        latency_ms:
+          chosen.latency_ms ??
+          probes.find((p) => p.id === chosen.id)?.latency_ms ??
+          null,
+      };
+      setFindSelected(chosenWithLatency);
+      setActiveServer(chosenWithLatency);
+      await wait(1200);
+      assertActive(runId, runIdRef);
+      setShowFindPanel(false);
+
+      const selectedServerId = chosenWithLatency.id;
+      accum.server_label = `${chosenWithLatency.name} · ${chosenWithLatency.location}`;
+
       const server = await measureServerPhase(selectedServerId);
       assertActive(runId, runIdRef);
       Object.assign(accum, {
@@ -170,13 +245,11 @@ export default function SpeedTestExperience({
         public_ip: server.public_ip,
         isp_name: server.isp_name,
         as_info: server.as_info,
-        server_label: server.server_label,
+        server_label: `${chosenWithLatency.name} · ${chosenWithLatency.location}`,
       });
       accum.errors.push(...(server.errors ?? []));
-      setGaugeValue(0);
-      await waitMin(serverStart, MIN_SERVER_MS);
-      assertActive(runId, runIdRef);
-      setGaugeValue(0);
+      setIspName(server.isp_name || null);
+      setPublicIp(server.public_ip || null);
 
       setPhase("download");
       setGaugeValue(0);
@@ -185,17 +258,19 @@ export default function SpeedTestExperience({
         (event) => {
           if (event.mbps != null) {
             setGaugeValue(event.mbps);
+            setDownloadMbps(event.mbps);
             if (event.mbps > 450) setGaugeMax(1000);
           }
         },
         { signal, quick: false, serverId: selectedServerId }
       );
       assertActive(runId, runIdRef);
-      const downloadMbps = downloadFinal?.download_mbps ?? downloadFinal?.mbps ?? 0;
-      accum.download_mbps = downloadMbps;
+      const down = downloadFinal?.download_mbps ?? downloadFinal?.mbps ?? 0;
+      accum.download_mbps = down;
       accum.errors.push(...(downloadFinal?.errors ?? []));
-      setGaugeValue(downloadMbps);
-      if (downloadMbps > 500) setGaugeMax(1000);
+      setDownloadMbps(down);
+      setGaugeValue(down);
+      if (down > 500) setGaugeMax(1000);
       await wait(SETTLE_MS);
       assertActive(runId, runIdRef);
 
@@ -203,15 +278,19 @@ export default function SpeedTestExperience({
       setGaugeValue(0);
       const uploadFinal = await streamUploadPhase(
         (event) => {
-          if (event.mbps != null) setGaugeValue(event.mbps);
+          if (event.mbps != null) {
+            setGaugeValue(event.mbps);
+            setUploadMbps(event.mbps);
+          }
         },
         { signal, quick: false, serverId: selectedServerId }
       );
       assertActive(runId, runIdRef);
-      const uploadMbps = uploadFinal?.upload_mbps ?? uploadFinal?.mbps ?? 0;
-      accum.upload_mbps = uploadMbps;
+      const up = uploadFinal?.upload_mbps ?? uploadFinal?.mbps ?? 0;
+      accum.upload_mbps = up;
       accum.errors.push(...(uploadFinal?.errors ?? []));
-      setGaugeValue(uploadMbps);
+      setUploadMbps(up);
+      setGaugeValue(up);
       await wait(SETTLE_MS);
       assertActive(runId, runIdRef);
 
@@ -238,8 +317,8 @@ export default function SpeedTestExperience({
       assertActive(runId, runIdRef);
 
       setPhase("ai");
-      setGaugeMax(downloadMbps > 500 ? 1000 : 500);
-      setGaugeValue(downloadMbps);
+      setGaugeMax(down > 500 ? 1000 : 500);
+      setGaugeValue(down);
 
       const speedTest = await completeSpeedTest(accum);
       assertActive(runId, runIdRef);
@@ -252,11 +331,14 @@ export default function SpeedTestExperience({
       }
       assertActive(runId, runIdRef);
 
+      setSessionActive(false);
       setPhase("done");
       onCompleteRef.current?.({ speedTest, recommendation });
     } catch (err) {
       if (runIdRef.current !== runId || err?.name === "AbortError") return;
       clearTimers();
+      setShowFindPanel(false);
+      setSessionActive(false);
       setPhase("idle");
       setGaugeValue(0);
       onErrorRef.current?.(err instanceof Error ? err.message : String(err));
@@ -281,34 +363,26 @@ export default function SpeedTestExperience({
 
   const stageId = normalizeStage(phase);
   const busy = phase !== "idle" && phase !== "done";
-  const selectedMeta = servers.find((s) => s.id === serverId);
 
   return (
-    <div className="sq-test-experience premium">
-      <div className="sq-server-picker">
-        <label htmlFor="sq-server-select">
-          <Server size={15} strokeWidth={2} />
-          Test server
-        </label>
-        <select
-          id="sq-server-select"
-          value={serverId}
-          disabled={busy}
-          onChange={(e) => setServerId(e.target.value)}
-        >
-          {(servers.length
-            ? servers
-            : [{ id: "cloudflare", name: "Cloudflare", location: "Global CDN" }]
-          ).map((server) => (
-            <option key={server.id} value={server.id}>
-              {server.name} — {server.location}
-            </option>
-          ))}
-        </select>
-        {selectedMeta?.upload_note && !busy && (
-          <p className="sq-server-note">{selectedMeta.upload_note}</p>
+    <div className="sq-test-experience premium mu-ecosystem">
+      <MauritiusServerPicker
+        servers={servers}
+        selectedId={preferredServerId}
+        onSelect={setPreferredServerId}
+        disabled={busy}
+      />
+
+      <AnimatePresence>
+        {showFindPanel && (
+          <FindServerPanel
+            visible
+            probes={findProbes}
+            selected={findSelected}
+            title="Finding Best Server…"
+          />
         )}
-      </div>
+      </AnimatePresence>
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -324,10 +398,6 @@ export default function SpeedTestExperience({
             phase={phase}
             onGo={handleGo}
             disabled={busy}
-            pingMs={pingMs}
-            jitterMs={jitterMs}
-            packetLossPct={packetLossPct}
-            elapsedSec={elapsedSec}
           />
           <TestStageProgress
             currentStageId={
@@ -336,27 +406,18 @@ export default function SpeedTestExperience({
           />
         </motion.div>
       </AnimatePresence>
+
       {(phase === "idle" || phase === "done") && (
         <p className="sq-test-hint">
-          Choose a server, then tap GO for a full SmartQoS measurement (typically 45–90 seconds).
+          Choose a Mauritius server (or Auto), then tap GO to start a new measurement session.
         </p>
-      )}
-      {phase !== "idle" && phase !== "done" && (
-        <motion.p
-          className="sq-stage-caption"
-          key={stageId}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {TEST_STAGES.find((s) => s.id === stageId)?.label || "Testing"}
-        </motion.p>
       )}
     </div>
   );
 }
 
 function normalizeStage(phase) {
+  if (phase === "jitter") return "ping";
   if (phase === "calculate" || phase === "results" || phase === "done") return "ai";
   return phase;
 }

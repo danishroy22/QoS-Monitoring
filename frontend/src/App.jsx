@@ -94,6 +94,7 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
   const [testKey, setTestKey] = useState(0);
+  const [liveSession, setLiveSession] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -143,6 +144,7 @@ export default function App() {
   }, [health]);
 
   const handleTestComplete = async ({ speedTest, recommendation: rec }) => {
+    setLiveSession(null);
     setLastTest({ speedTest, recommendation: rec });
     if (rec) setRecommendation(rec);
     await refresh();
@@ -150,8 +152,25 @@ export default function App() {
   };
 
   const handleTestError = (message) => {
+    setLiveSession(null);
     if (message) setError(message);
   };
+
+  const handleLiveUpdate = useCallback((snapshot) => {
+    setLiveSession(snapshot?.active ? snapshot : null);
+  }, []);
+
+  const metricSource = liveSession?.active
+    ? {
+        download_mbps: liveSession.download_mbps,
+        upload_mbps: liveSession.upload_mbps,
+        ping_ms: liveSession.ping_ms,
+        jitter_ms: liveSession.jitter_ms,
+        packet_loss_pct: liveSession.packet_loss_pct,
+      }
+    : latest;
+
+  const livePhase = liveSession?.active ? liveSession.phase : null;
 
   return (
     <div className="iq-shell dark">
@@ -225,25 +244,46 @@ export default function App() {
                     autoStart={false}
                     onComplete={handleTestComplete}
                     onError={handleTestError}
+                    onLiveUpdate={handleLiveUpdate}
                   />
                 </GlassCard>
 
                 {bootLoading ? (
                   <SkeletonCards count={5} />
                 ) : (
-                  <div className="iq-metric-grid">
+                  <div className="iq-metric-grid" aria-live="polite">
                     {PRIMARY_METRICS.map((metric, index) => (
                       <MetricStatCard
                         key={metric.key}
                         label={metric.label}
-                        value={latest?.[metric.key]}
+                        value={metricSource?.[metric.key]}
                         unit={metric.unit}
-                        rating={metricRating[metric.healthName]}
+                        rating={
+                          liveSession?.active
+                            ? null
+                            : metricRating[metric.healthName]
+                        }
                         icon={metric.icon}
                         accent={metric.accent}
-                        trend={trendFor(metric, latest, previous)}
+                        trend={
+                          liveSession?.active
+                            ? "flat"
+                            : trendFor(metric, latest, previous)
+                        }
                         digits={metric.digits ?? 1}
                         delay={0.08 + index * 0.04}
+                        pending={Boolean(liveSession?.active)}
+                        live={
+                          livePhase === "download" && metric.key === "download_mbps"
+                            ? true
+                            : livePhase === "upload" && metric.key === "upload_mbps"
+                              ? true
+                              : livePhase === "ping" && metric.key === "ping_ms"
+                                ? true
+                                : livePhase === "jitter" && metric.key === "jitter_ms"
+                                  ? true
+                                  : false
+                        }
                       />
                     ))}
                   </div>

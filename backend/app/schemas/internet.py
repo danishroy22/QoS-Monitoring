@@ -23,13 +23,37 @@ class SpeedTestServerOption(BaseModel):
     id: str
     name: str
     location: str
+    country: str | None = "Mauritius"
+    type: str | None = "ISP Test Server"
+    status: str = "Online"
+    host: str | None = None
+    ookla_server_id: int | None = None
+    distance_km: float | int | None = None
     supports_upload: bool = True
     upload_note: str | None = None
 
 
 class SpeedTestServersResponse(BaseModel):
     servers: list[SpeedTestServerOption]
-    default_server_id: str = "cloudflare"
+    default_server_id: str = "emtel-ebene-18276"
+    auto_select: bool = True
+
+
+class SpeedTestServerProbe(BaseModel):
+    id: str
+    name: str
+    location: str
+    type: str | None = None
+    status: str = "Online"
+    host: str | None = None
+    distance_km: float | int | None = None
+    latency_ms: float
+
+
+class SpeedTestFindServerResponse(BaseModel):
+    probes: list[SpeedTestServerProbe]
+    best_server_id: str
+    best_server: SpeedTestServerProbe | None = None
 
 
 class SpeedTestPhaseQuery(BaseModel):
@@ -44,7 +68,7 @@ class SpeedTestServerPhaseOut(BaseModel):
     public_ip: str | None = None
     isp_name: str | None = None
     as_info: str | None = None
-    server_label: str = "cloudflare"
+    server_label: str = "emtel"
     server_id: str | None = None
     errors: list[str] = []
 

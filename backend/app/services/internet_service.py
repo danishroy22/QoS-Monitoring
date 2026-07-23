@@ -38,7 +38,7 @@ from measurement.engine import (
     PING_COUNT_FULL,
     PING_COUNT_QUICK,
 )
-from measurement.servers import list_servers
+from measurement.servers import list_servers, probe_mauritius_servers
 from measurement.qos_analysis import analyze_qos
 
 
@@ -76,6 +76,10 @@ def run_speedtest(
 
 def list_speed_servers() -> list[dict]:
     return list_servers()
+
+
+def find_best_server() -> dict:
+    return probe_mauritius_servers()
 
 
 def measure_server_phase(*, server_id: str | None = None) -> SpeedTestServerPhaseOut:

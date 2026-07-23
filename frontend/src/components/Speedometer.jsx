@@ -2,16 +2,17 @@ import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } fr
 import { useEffect, useId, useMemo, useState } from "react";
 
 /**
- * Premium 270° SmartQoS speedometer.
- * Original SVG + Framer Motion design for a commercial broadband test look.
+ * Premium 270° SmartQoS speedometer (gauge + centre readout + GO only).
+ * Dashboard metric cards live outside this component.
  */
-const START_ANGLE = 135; // deg, SVG math coords (0 = east)
+const START_ANGLE = 135;
 const SWEEP = 270;
-const CX = 200;
-const CY = 200;
-const RADIUS = 152;
-const TRACK_WIDTH = 16;
-const PROGRESS_WIDTH = 22;
+const CX = 220;
+const CY = 220;
+const RADIUS = 168;
+const TRACK_WIDTH = 14;
+const PROGRESS_WIDTH = 24;
+const VIEW = 440;
 
 function polar(cx, cy, r, angleDeg) {
   const rad = (angleDeg * Math.PI) / 180;
@@ -30,17 +31,16 @@ function describeArc(cx, cy, r, startAngle, endAngle) {
 }
 
 function phaseMode(phase) {
-  if (phase === "jitter") return { title: "JITTER", unit: "ms" };
-  if (phase === "ping") return { title: "PING", unit: "ms" };
-  if (phase === "upload") return { title: "UPLOAD", unit: "Mbps" };
+  if (phase === "jitter") return { title: "JITTER", subtitle: "Current Jitter", unit: "ms" };
+  if (phase === "ping") return { title: "PING", subtitle: "Current Latency", unit: "ms" };
+  if (phase === "upload") return { title: "UPLOAD", subtitle: "Current Speed", unit: "Mbps" };
   if (phase === "download" || phase === "calculate" || phase === "results" || phase === "done") {
-    return { title: "DOWNLOAD", unit: "Mbps" };
+    return { title: "DOWNLOAD", subtitle: "Current Speed", unit: "Mbps" };
   }
-  if (phase === "ai") return { title: "ANALYSIS", unit: "Mbps" };
-  if (phase === "server" || phase === "init" || phase === "idle") {
-    return { title: phase === "idle" ? "READY" : phase === "init" ? "INITIALIZING" : "SERVER", unit: "Mbps" };
-  }
-  return { title: "DOWNLOAD", unit: "Mbps" };
+  if (phase === "ai") return { title: "ANALYSIS", subtitle: "Peak Download", unit: "Mbps" };
+  if (phase === "server") return { title: "SERVER", subtitle: "Current Speed", unit: "Mbps" };
+  if (phase === "init") return { title: "INITIALIZING", subtitle: "Current Speed", unit: "Mbps" };
+  return { title: "DOWNLOAD", subtitle: "Current Speed", unit: "Mbps" };
 }
 
 export default function Speedometer({
@@ -49,10 +49,6 @@ export default function Speedometer({
   phase = "idle",
   onGo,
   disabled = false,
-  pingMs = null,
-  jitterMs = null,
-  packetLossPct = null,
-  elapsedSec = null,
 }) {
   const uid = useId().replace(/:/g, "");
   const mode = phaseMode(phase);
@@ -69,7 +65,6 @@ export default function Speedometer({
 
   useEffect(() => {
     const target = Math.max(0, Number(value) || 0);
-    // Snap to zero during init / server discovery so the needle does not linger.
     const snap = target === 0 || phase === "init" || phase === "server" || phase === "idle";
     if (snap && target === 0) {
       motionValue.set(0);
@@ -77,9 +72,9 @@ export default function Speedometer({
     }
     const controls = animate(motionValue, target, {
       type: "spring",
-      stiffness: 36,
-      damping: 22,
-      mass: 1.05,
+      stiffness: 34,
+      damping: 24,
+      mass: 1.1,
     });
     return controls.stop;
   }, [value, motionValue, phase]);
@@ -93,9 +88,9 @@ export default function Speedometer({
     }
     const controls = animate(progressMV, Math.max(0.001, ratio), {
       type: "spring",
-      stiffness: 32,
-      damping: 24,
-      mass: 1.1,
+      stiffness: 30,
+      damping: 26,
+      mass: 1.15,
     });
     return controls.stop;
   }, [value, gaugeMax, progressMV, phase]);
@@ -113,11 +108,12 @@ export default function Speedometer({
       const t = mark / gaugeMax;
       const angle = START_ANGLE + t * SWEEP;
       const major = isMsGauge ? mark % (step * 2) === 0 : mark % 100 === 0;
-      const inner = major ? RADIUS - 22 : RADIUS - 14;
-      const outer = RADIUS - 4;
+      const inner = major ? RADIUS - 18 : RADIUS - 12;
+      const outer = RADIUS - 2;
       const a = polar(CX, CY, inner, angle);
       const b = polar(CX, CY, outer, angle);
-      items.push({ mark, major, a, b, angle });
+      const labelPos = polar(CX, CY, RADIUS + 22, angle);
+      items.push({ mark, major, a, b, labelPos });
     }
     return items;
   }, [gaugeMax, isMsGauge]);
@@ -128,165 +124,135 @@ export default function Speedometer({
   });
   const dashOffset = useTransform(progressMV, (p) => arcLength * (1 - p));
 
-  const fmt = (n, digits = 1) =>
-    n == null || Number.isNaN(Number(n)) ? "—" : Number(n).toFixed(digits);
+  const centreTitle = showGo ? "DOWNLOAD" : mode.title;
 
   return (
     <div className="sq-speedometer premium" data-phase={phase}>
-      <div className="sq-gauge-glass">
-        <div className="sq-corner sq-corner-tl">
-          <span>Ping</span>
-          <strong>{fmt(pingMs, 0)}<small> ms</small></strong>
-        </div>
-        <div className="sq-corner sq-corner-tr">
-          <span>Jitter</span>
-          <strong>{fmt(jitterMs, 1)}<small> ms</small></strong>
-        </div>
-        <div className="sq-corner sq-corner-bl">
-          <span>Packet Loss</span>
-          <strong>{fmt(packetLossPct, 2)}<small> %</small></strong>
-        </div>
-        <div className="sq-corner sq-corner-br">
-          <span>Elapsed Time</span>
-          <strong>{fmt(elapsedSec, 0)}<small> s</small></strong>
-        </div>
+      <div className="sq-gauge-core centered">
+        <div className="sq-gauge-ring">
+          <svg
+            viewBox={`0 0 ${VIEW} ${VIEW}`}
+            className="sq-gauge-svg"
+            role="img"
+            aria-label={`${centreTitle} ${value} ${mode.unit}`}
+          >
+            <defs>
+              <linearGradient id={`sq-arc-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#06b6d4" />
+                <stop offset="50%" stopColor="#3b82f6" />
+                <stop offset="100%" stopColor="#7c3aed" />
+              </linearGradient>
+              <radialGradient id={`sq-core-${uid}`} cx="50%" cy="48%" r="52%">
+                <stop offset="0%" stopColor="rgba(15, 23, 42, 0.15)" />
+                <stop offset="100%" stopColor="rgba(5, 8, 22, 0.55)" />
+              </radialGradient>
+              <filter id={`sq-glow-${uid}`} x="-55%" y="-55%" width="210%" height="210%">
+                <feGaussianBlur stdDeviation="6" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
 
-        <svg
-          viewBox="0 0 400 400"
-          className="sq-gauge-svg"
-          role="img"
-          aria-label={`${mode.title} ${value} ${mode.unit}`}
-        >
-          <defs>
-            <linearGradient id={`sq-arc-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#22d3ee" />
-              <stop offset="45%" stopColor="#3b82f6" />
-              <stop offset="100%" stopColor="#a855f7" />
-            </linearGradient>
-            <radialGradient id={`sq-core-${uid}`} cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="rgba(56,189,248,0.18)" />
-              <stop offset="70%" stopColor="rgba(5,8,22,0.2)" />
-              <stop offset="100%" stopColor="rgba(5,8,22,0.65)" />
-            </radialGradient>
-            <filter id={`sq-glow-${uid}`} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="5.5" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
+            <circle cx={CX} cy={CY} r={RADIUS + 36} fill={`url(#sq-core-${uid})`} />
 
-          <circle cx={CX} cy={CY} r="178" fill={`url(#sq-core-${uid})`} />
-          <circle
-            cx={CX}
-            cy={CY}
-            r="178"
-            fill="none"
-            stroke="rgba(148,163,184,0.16)"
-            strokeWidth="1"
-          />
-
-          {/* Thin background arc */}
-          <path
-            d={trackPath}
-            fill="none"
-            stroke="rgba(148,163,184,0.22)"
-            strokeWidth={TRACK_WIDTH}
-            strokeLinecap="round"
-          />
-
-          {/* Thick gradient progress arc */}
-          <motion.path
-            d={trackPath}
-            fill="none"
-            stroke={`url(#sq-arc-${uid})`}
-            strokeWidth={PROGRESS_WIDTH}
-            strokeLinecap="round"
-            strokeDasharray={arcLength}
-            style={{ strokeDashoffset: dashOffset }}
-            filter={`url(#sq-glow-${uid})`}
-          />
-
-          {/* Tick marks */}
-          {ticks.map((tick) => (
-            <line
-              key={tick.mark}
-              x1={tick.a.x}
-              y1={tick.a.y}
-              x2={tick.b.x}
-              y2={tick.b.y}
-              stroke={tick.major ? "rgba(226,232,240,0.75)" : "rgba(148,163,184,0.35)"}
-              strokeWidth={tick.major ? 2.4 : 1.2}
+            <path
+              d={trackPath}
+              fill="none"
+              stroke="rgba(148,163,184,0.2)"
+              strokeWidth={TRACK_WIDTH}
               strokeLinecap="round"
             />
-          ))}
 
-          {ticks
-            .filter((t) => t.major)
-            .map((tick) => {
-              const labelPos = polar(CX, CY, RADIUS - 36, tick.angle);
-              return (
+            <motion.path
+              d={trackPath}
+              fill="none"
+              stroke={`url(#sq-arc-${uid})`}
+              strokeWidth={PROGRESS_WIDTH}
+              strokeLinecap="round"
+              strokeDasharray={arcLength}
+              style={{ strokeDashoffset: dashOffset }}
+              filter={`url(#sq-glow-${uid})`}
+            />
+
+            {ticks.map((tick) => (
+              <line
+                key={tick.mark}
+                x1={tick.a.x}
+                y1={tick.a.y}
+                x2={tick.b.x}
+                y2={tick.b.y}
+                stroke={tick.major ? "rgba(226,232,240,0.7)" : "rgba(148,163,184,0.28)"}
+                strokeWidth={tick.major ? 2.2 : 1.1}
+                strokeLinecap="round"
+              />
+            ))}
+
+            {ticks
+              .filter((t) => t.major)
+              .map((tick) => (
                 <text
                   key={`label-${tick.mark}`}
-                  x={labelPos.x}
-                  y={labelPos.y}
+                  x={tick.labelPos.x}
+                  y={tick.labelPos.y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  className="sq-tick-label"
-                  fill="rgba(148,163,184,0.7)"
-                  fontSize="11"
+                  fill="rgba(203,213,225,0.85)"
+                  fontSize="12"
+                  fontWeight="600"
                   fontFamily="IBM Plex Mono, monospace"
                 >
                   {tick.mark}
                 </text>
-              );
-            })}
+              ))}
 
-          {/* Needle — SVG rotate around gauge centre for reliable easing */}
-          <g transform={`rotate(${needleDeg} ${CX} ${CY})`}>
-            <line
-              x1={CX}
-              y1={CY}
-              x2={CX}
-              y2={CY - RADIUS + 28}
-              stroke="#f8fafc"
-              strokeWidth="3.2"
-              strokeLinecap="round"
-              filter={`url(#sq-glow-${uid})`}
-            />
-            <circle cx={CX} cy={CY} r="11" fill="#e2e8f0" />
-            <circle cx={CX} cy={CY} r="5.5" fill="#38bdf8" />
-          </g>
-        </svg>
+            <g transform={`rotate(${needleDeg} ${CX} ${CY})`}>
+              <line
+                x1={CX}
+                y1={CY}
+                x2={CX}
+                y2={CY - RADIUS + 32}
+                stroke="#f8fafc"
+                strokeWidth="3.4"
+                strokeLinecap="round"
+                filter={`url(#sq-glow-${uid})`}
+              />
+            </g>
+          </svg>
 
-        <div className="sq-gauge-readout">
-          <motion.p
-            key={mode.title}
-            className="sq-gauge-mode"
-            initial={{ opacity: 0, y: 6 }}
+          <div className="sq-gauge-readout">
+            <motion.p
+              key={centreTitle}
+              className="sq-gauge-mode"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28 }}
+            >
+              {centreTitle}
+            </motion.p>
+            <p className="sq-gauge-subtitle">{showGo ? "Current Speed" : mode.subtitle}</p>
+            <p className="sq-gauge-number">
+              <motion.span>{display}</motion.span>
+            </p>
+            <p className="sq-gauge-unit">{mode.unit}</p>
+          </div>
+        </div>
+
+        {showGo && (
+          <motion.button
+            type="button"
+            className="sq-go-btn"
+            onClick={onGo}
+            disabled={disabled}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.96 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            {showGo ? "SMARTQOS" : mode.title}
-          </motion.p>
-          <p className="sq-gauge-number">
-            <motion.span>{display}</motion.span>
-          </p>
-          <p className="sq-gauge-unit">{mode.unit}</p>
-
-          {showGo && (
-            <motion.button
-              type="button"
-              className="sq-go-btn"
-              onClick={onGo}
-              disabled={disabled}
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              GO
-            </motion.button>
-          )}
-        </div>
+            GO
+          </motion.button>
+        )}
       </div>
     </div>
   );

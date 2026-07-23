@@ -10,6 +10,7 @@ const TREND = {
 
 /**
  * Dashboard statistic card: icon, large value, label, rating, optional trend.
+ * Supports live-session blanking via `pending` / `live`.
  */
 export default function MetricStatCard({
   label,
@@ -21,12 +22,15 @@ export default function MetricStatCard({
   trend = "flat",
   digits = 1,
   delay = 0,
+  pending = false,
+  live = false,
 }) {
   const { Icon: TrendIcon, className: trendClass } = TREND[trend] || TREND.flat;
+  const empty = value == null || value === "" || Number.isNaN(Number(value));
 
   return (
     <motion.article
-      className={`metric-stat glass ui-card-hover accent-${accent}`}
+      className={`metric-stat glass ui-card-hover accent-${accent} ${pending && empty ? "is-pending" : ""} ${live ? "is-live" : ""}`}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] }}
@@ -39,15 +43,23 @@ export default function MetricStatCard({
           </span>
         )}
         <span className={`metric-stat-trend ${trendClass}`} aria-hidden="true">
-          <TrendIcon size={14} strokeWidth={2.25} />
+          {live ? <span className="sq-metric-live-dot" /> : <TrendIcon size={14} strokeWidth={2.25} />}
         </span>
       </div>
       <p className="metric-stat-label">{label}</p>
       <p className="metric-stat-value">
-        {formatNumber(value, digits)}
-        <span>{unit}</span>
+        {empty ? (
+          pending ? <span className="sq-metric-placeholder" /> : "—"
+        ) : (
+          <>
+            {formatNumber(value, digits)}
+            <span>{unit}</span>
+          </>
+        )}
       </p>
-      <p className={`metric-stat-rating ${ratingClass(rating)}`}>{rating || "—"}</p>
+      <p className={`metric-stat-rating ${ratingClass(rating)}`}>
+        {pending && empty ? "" : rating || "—"}
+      </p>
     </motion.article>
   );
 }
