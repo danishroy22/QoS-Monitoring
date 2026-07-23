@@ -15,9 +15,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analyze, anomalies, health, internet, measurements, metrics
+from app.api.routes import analyze, anomalies, health, internet, measurements, metrics, monitoring
 from app.core.config import get_settings
 from app.db.init_db import init_db
+from app.services.monitoring_service import start_scheduler, stop_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,9 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("Initialising database (%s)", settings.database_url)
     init_db(seed=settings.seed_nodes)
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 def create_app() -> FastAPI:
@@ -52,6 +55,8 @@ def create_app() -> FastAPI:
 
     # Primary Internet Quality API (Phases 2–6 redesign)
     app.include_router(internet.router)
+    # Phase 7 — Continuous QoS Monitoring
+    app.include_router(monitoring.router)
     # Keep a single health endpoint from the dedicated health router as well
     # (internet.router also exposes /health — FastAPI will use the first match).
     # Legacy simulated NOC platform
@@ -70,6 +75,7 @@ def create_app() -> FastAPI:
             "health": "/health",
             "dashboard": "/dashboard",
             "speedtest": "POST /speedtest",
+            "monitoring": "GET /monitoring/status",
         }
 
     return app

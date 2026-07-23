@@ -34,3 +34,11 @@ Ookla-style React UI with GO button, overall score, metric cards, speed graph, h
 ## Phase 6 — AI Network Assistant
 
 Trend-aware analysis with possible reasons and recommended actions (`GET /recommendation`).
+
+## Phase 7 — Continuous QoS Monitoring
+
+Background interval-based measurements using the same engine. See `docs/monitoring.md`.
+
+- `GET /monitoring/status`
+- `POST /monitoring/start`
+- `POST /monitoring/stop`

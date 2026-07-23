@@ -35,6 +35,9 @@ Open **http://127.0.0.1:5173** and click **GO**.
 | GET | `/statistics` | Aggregate averages |
 | GET | `/isp` | Public IP / ISP from last test |
 | GET | `/recommendation` | AI Network Assistant |
+| GET | `/monitoring/status` | Continuous monitoring status |
+| POST | `/monitoring/start` | Enable background monitoring |
+| POST | `/monitoring/stop` | Disable background monitoring |
 | GET | `/health` | API + database status |
 
 Example:

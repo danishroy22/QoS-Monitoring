@@ -8,6 +8,7 @@ from app.models.network import (
     QoSMeasurement,
 )
 from app.models.speedtest import SpeedTestResult
+from app.models.monitoring import MonitoringState
 
 __all__ = [
     "AiRecommendation",
@@ -16,4 +17,5 @@ __all__ = [
     "NetworkNode",
     "QoSMeasurement",
     "SpeedTestResult",
+    "MonitoringState",
 ]

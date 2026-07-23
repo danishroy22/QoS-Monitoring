@@ -16,8 +16,10 @@ import {
 } from "./api/client";
 import AiAssistant from "./components/AiAssistant";
 import HistoryTable from "./components/HistoryTable";
+import MonitoringView from "./components/MonitoringView";
 import SpeedTestExperience from "./components/SpeedTestExperience";
 import GlassCard from "./components/ui/GlassCard";
+import SoftButton from "./components/ui/SoftButton";
 import { SkeletonCards } from "./components/ui/LoadingPulse";
 import MetricStatCard from "./components/ui/MetricStatCard";
 import PanelHeader from "./components/ui/PanelHeader";
@@ -180,10 +182,32 @@ export default function App() {
           <div>
             <p className="iq-eyebrow">SmartQoS Platform</p>
             <h1>
-              {view === "results" ? "Network Quality Report" : "Internet Quality Monitor"}
+              {view === "results"
+                ? "Network Quality Report"
+                : view === "monitoring"
+                  ? "Continuous Monitoring"
+                  : "Internet Quality Monitor"}
             </h1>
           </div>
           <div className="iq-top-meta">
+            {(view === "dashboard" || view === "monitoring") && (
+              <nav className="iq-nav" aria-label="Primary">
+                <SoftButton
+                  variant={view === "dashboard" ? "primary" : "ghost"}
+                  className="iq-nav-btn"
+                  onClick={() => setView("dashboard")}
+                >
+                  Dashboard
+                </SoftButton>
+                <SoftButton
+                  variant={view === "monitoring" ? "primary" : "ghost"}
+                  className="iq-nav-btn"
+                  onClick={() => setView("monitoring")}
+                >
+                  Monitoring
+                </SoftButton>
+              </nav>
+            )}
             <span className={`iq-status ${apiOk ? "on" : "off"}`}>
               <span
                 style={{
@@ -322,6 +346,16 @@ export default function App() {
                 <AiAssistant recommendation={recommendation} loading={aiLoading} />
               </div>
             </motion.div>
+          )}
+
+          {view === "monitoring" && (
+            <MonitoringView
+              key="monitoring"
+              onBack={() => {
+                setView("dashboard");
+                refresh();
+              }}
+            />
           )}
 
           {view === "results" && lastTest && (

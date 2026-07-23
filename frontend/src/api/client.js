@@ -148,3 +148,19 @@ export function fetchRecommendation() {
 export function fetchIsp() {
   return request("/isp");
 }
+
+export function fetchMonitoringStatus() {
+  return request("/monitoring/status");
+}
+
+export function startMonitoring(payload) {
+  return request("/monitoring/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function stopMonitoring() {
+  return request("/monitoring/stop", { method: "POST" });
+}

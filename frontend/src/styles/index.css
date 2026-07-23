@@ -167,6 +167,17 @@ input {
   align-items: center;
 }
 
+.iq-nav {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.iq-nav-btn {
+  padding: 8px 14px !important;
+  font-size: 0.82rem !important;
+}
+
 .iq-status,
 .iq-isp {
   display: inline-flex;
@@ -1520,6 +1531,9 @@ input {
 .ui-btn-label {
   position: relative;
   z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ui-btn.is-loading .ui-btn-label {
@@ -1825,5 +1839,152 @@ input {
 
   .iq-panel {
     padding: var(--space-2);
+  }
+}
+
+/* —— Phase 7: Continuous Monitoring —— */
+.mon-view {
+  gap: var(--space-3);
+}
+
+.mon-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: flex-end;
+  margin-top: var(--space-2);
+}
+
+.mon-field {
+  display: grid;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.mon-field span {
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.mon-field select,
+.mon-field input {
+  appearance: none;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+  min-height: 42px;
+}
+
+.mon-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.mon-status-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.mon-stat {
+  padding: var(--space-2) !important;
+}
+
+.mon-stat-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.mon-stat-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.mon-stat-value {
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.mon-stat-value.compact {
+  font-size: 0.95rem;
+}
+
+.mon-stat-value.on {
+  color: var(--success);
+}
+
+.mon-stat-value.off {
+  color: var(--muted);
+}
+
+.mon-last-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.mon-last-grid div {
+  display: grid;
+  gap: 4px;
+}
+
+.mon-last-grid span {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mon-last-grid strong {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.mon-error {
+  margin: var(--space-2) 0 0;
+  color: var(--error);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 1100px) {
+  .mon-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .mon-status-grid,
+  .mon-last-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mon-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mon-field {
+    min-width: 0;
   }
 }
