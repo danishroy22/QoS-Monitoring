@@ -1,0 +1,10 @@
+{
+  "name": "Ideal Broadband Profile",
+  "description": "Configurable Mauritius-oriented QoS targets used to benchmark every ISP.",
+  "download_mbps": 100,
+  "upload_mbps": 20,
+  "ping_ms": 20,
+  "jitter_ms": 5,
+  "packet_loss_pct": 0.5,
+  "overall_score": 85
+}

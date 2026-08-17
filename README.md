@@ -39,6 +39,8 @@ Open **http://127.0.0.1:5173** and click **GO**.
 | POST | `/monitoring/start` | Enable background monitoring |
 | POST | `/monitoring/stop` | Disable background monitoring |
 | GET | `/health` | API + database status |
+| GET | `/admin/dashboard` | Administrator KPIs and ISP leaderboard |
+| GET | `/admin/report` | Administrator QoS PDF report |
 
 Example:
 
@@ -62,7 +64,8 @@ Browser Dashboard  →  FastAPI
 
 - `backend/measurement/` — real measurement + QoS scoring + AI assistant
 - `backend/app/` — FastAPI, models, services, routes
-- `frontend/` — Internet Quality Dashboard
+- `frontend/` — Internet Quality Dashboard + Administrator Portal
+- `docs/admin-portal.md` — Phase 18 operator analytics
 - `backend/simulator/` — legacy synthetic NOC generator (still available under `/api`)
 
 ## Optional Generative AI

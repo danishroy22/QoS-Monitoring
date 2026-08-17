@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analyze, anomalies, health, internet, measurements, metrics, monitoring
+from app.api.routes import admin, analyze, anomalies, health, internet, measurements, metrics, monitoring
 from app.core.config import get_settings
 from app.db.init_db import init_db
 from app.services.monitoring_service import start_scheduler, stop_scheduler
@@ -57,6 +57,8 @@ def create_app() -> FastAPI:
     app.include_router(internet.router)
     # Phase 7 — Continuous QoS Monitoring
     app.include_router(monitoring.router)
+    # Phase 18 — Administrator Analytics Portal
+    app.include_router(admin.router)
     # Keep a single health endpoint from the dedicated health router as well
     # (internet.router also exposes /health — FastAPI will use the first match).
     # Legacy simulated NOC platform
@@ -76,6 +78,7 @@ def create_app() -> FastAPI:
             "dashboard": "/dashboard",
             "speedtest": "POST /speedtest",
             "monitoring": "GET /monitoring/status",
+            "admin": "GET /admin/dashboard",
         }
 
     return app

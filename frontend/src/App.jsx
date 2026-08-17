@@ -5,6 +5,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Gauge,
+  Shield,
   Wifi,
   Zap,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import { ratingClass } from "./utils/format";
 
 const SpeedGraph = lazy(() => import("./components/SpeedGraph"));
 const ResultsView = lazy(() => import("./components/ResultsView"));
+const AdminPortal = lazy(() => import("./admin/AdminPortal"));
 
 const PRIMARY_METRICS = [
   {
@@ -186,11 +188,13 @@ export default function App() {
                 ? "Network Quality Report"
                 : view === "monitoring"
                   ? "Continuous Monitoring"
-                  : "Internet Quality Monitor"}
+                  : view === "admin"
+                    ? "Administrator Portal"
+                    : "Internet Quality Monitor"}
             </h1>
           </div>
           <div className="iq-top-meta">
-            {(view === "dashboard" || view === "monitoring") && (
+            {(view === "dashboard" || view === "monitoring" || view === "admin") && (
               <nav className="iq-nav" aria-label="Primary">
                 <SoftButton
                   variant={view === "dashboard" ? "primary" : "ghost"}
@@ -205,6 +209,14 @@ export default function App() {
                   onClick={() => setView("monitoring")}
                 >
                   Monitoring
+                </SoftButton>
+                <SoftButton
+                  variant={view === "admin" ? "primary" : "ghost"}
+                  className="iq-nav-btn"
+                  onClick={() => setView("admin")}
+                >
+                  <Shield size={14} strokeWidth={2.25} />
+                  Admin
                 </SoftButton>
               </nav>
             )}
@@ -356,6 +368,24 @@ export default function App() {
                 refresh();
               }}
             />
+          )}
+
+          {view === "admin" && (
+            <Suspense
+              fallback={
+                <GlassCard className="iq-panel">
+                  <SkeletonCards count={4} />
+                </GlassCard>
+              }
+            >
+              <AdminPortal
+                key="admin"
+                onBack={() => {
+                  setView("dashboard");
+                  refresh();
+                }}
+              />
+            </Suspense>
           )}
 
           {view === "results" && lastTest && (

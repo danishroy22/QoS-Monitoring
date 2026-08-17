@@ -164,3 +164,59 @@ export function startMonitoring(payload) {
 export function stopMonitoring() {
   return request("/monitoring/stop", { method: "POST" });
 }
+
+export function fetchAdminDashboard(days = 90) {
+  return request(`/admin/dashboard?days=${days}`);
+}
+
+export function fetchAdminIspAnalytics(days = 90) {
+  return request(`/admin/isp-analytics?days=${days}`);
+}
+
+export function fetchAdminBenchmarks(days = 90) {
+  return request(`/admin/benchmarks?days=${days}`);
+}
+
+export function updateAdminBenchmarks(profile, days = 90) {
+  return request(`/admin/benchmarks?days=${days}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+}
+
+export function fetchAdminHistory(granularity = "daily", days = 90) {
+  return request(`/admin/history?granularity=${encodeURIComponent(granularity)}&days=${days}`);
+}
+
+export function fetchAdminHeatmap(days = 90) {
+  return request(`/admin/heatmap?days=${days}`);
+}
+
+export function fetchAdminAi(days = 90) {
+  return request(`/admin/ai/isp-analysis?days=${days}`);
+}
+
+export async function downloadAdminReport(days = 90) {
+  const url = `${API_BASE}/admin/report?days=${days}`;
+  let response;
+  try {
+    response = await fetch(url, { headers: { Accept: "application/pdf" } });
+  } catch {
+    throw new Error(
+      `Cannot reach API at ${url}. Start the backend with: python scripts/run_backend.py`
+    );
+  }
+  if (!response.ok) {
+    throw new Error(`Report failed: ${response.status} ${response.statusText}`);
+  }
+  const blob = await response.blob();
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = "SmartQoS-Administrator-QoS-Report.pdf";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
+}

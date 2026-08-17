@@ -42,3 +42,16 @@ Background interval-based measurements using the same engine. See `docs/monitori
 - `GET /monitoring/status`
 - `POST /monitoring/start`
 - `POST /monitoring/stop`
+
+## Phase 18 — Administrator Analytics Portal
+
+Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.
+
+- `GET /admin/dashboard`
+- `GET /admin/isp-analytics`
+- `GET /admin/benchmarks`
+- `PUT /admin/benchmarks`
+- `GET /admin/history`
+- `GET /admin/heatmap`
+- `GET /admin/ai/isp-analysis`
+- `GET /admin/report`

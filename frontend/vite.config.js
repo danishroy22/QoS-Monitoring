@@ -14,6 +14,8 @@ export default defineConfig({
       "/statistics": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/isp": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/recommendation": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/monitoring": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/admin": { target: "http://127.0.0.1:8000", changeOrigin: true },
     },
   },
 });
