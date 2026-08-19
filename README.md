@@ -62,6 +62,8 @@ Browser Dashboard  →  FastAPI
 
 ## Project layout
 
+Full module map: **[PROGRAM_STRUCTURE.md](PROGRAM_STRUCTURE.md)**
+
 - `backend/measurement/` — real measurement + QoS scoring + AI assistant
 - `backend/app/` — FastAPI, models, services, routes
 - `frontend/` — Internet Quality Dashboard + Administrator Portal
