@@ -5,6 +5,7 @@ import {
   fetchRecommendation,
   fetchSpeedServers,
   findBestServer,
+  identifyConnection,
   measureLatencyPhase,
   measureServerPhase,
   streamDownloadPhase,
@@ -16,7 +17,6 @@ import Speedometer from "./Speedometer";
 import TestStageProgress from "./TestStageProgress";
 
 const SETTLE_MS = 2800;
-const MIN_INIT_MS = 1000;
 const SERVER_STORAGE_KEY = "smartqos_mu_server_id";
 const AUTO_ID = "auto";
 
@@ -24,11 +24,6 @@ function wait(ms) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
-}
-
-async function waitMin(startedAt, minMs) {
-  const remaining = minMs - (Date.now() - startedAt);
-  if (remaining > 0) await wait(remaining);
 }
 
 function assertActive(runId, runIdRef) {
@@ -67,6 +62,8 @@ export default function SpeedTestExperience({
   const [findProbes, setFindProbes] = useState([]);
   const [findSelected, setFindSelected] = useState(null);
   const [showFindPanel, setShowFindPanel] = useState(false);
+  const [identity, setIdentity] = useState(null);
+  const [identityReady, setIdentityReady] = useState(false);
   const [sessionActive, setSessionActive] = useState(false);
 
   const timersRef = useRef([]);
@@ -154,6 +151,8 @@ export default function SpeedTestExperience({
     setActiveServer(null);
     setFindProbes([]);
     setFindSelected(null);
+    setIdentity(null);
+    setIdentityReady(false);
   };
 
   const startTest = async (runId) => {
@@ -168,7 +167,7 @@ export default function SpeedTestExperience({
     setGaugeValue(0);
     setGaugeMax(500);
     resetSessionCards();
-    setShowFindPanel(false);
+    setShowFindPanel(true);
     onErrorRef.current?.(null);
 
     const accum = {
@@ -184,24 +183,50 @@ export default function SpeedTestExperience({
       public_ip: null,
       isp_name: null,
       as_info: null,
+      detected_region: null,
+      detected_city: null,
+      latitude: null,
+      longitude: null,
       server_label: "Mauritius",
+      server_id: null,
+      selection_mode: preferredServerId === AUTO_ID ? "auto" : "manual",
+      selection_score: null,
       errors: [],
     };
 
     try {
-      const initStart = Date.now();
-      await waitMin(initStart, MIN_INIT_MS);
+      setPhase("init");
+      setGaugeValue(0);
+
+      let identified = null;
+      try {
+        identified = await identifyConnection();
+      } catch {
+        identified = null;
+      }
+      assertActive(runId, runIdRef);
+      setIdentity(identified);
+      setIdentityReady(true);
+      if (identified?.isp_name) setIspName(identified.isp_name);
+      if (identified?.public_ip) setPublicIp(identified.public_ip);
+      Object.assign(accum, {
+        public_ip: identified?.public_ip ?? null,
+        isp_name: identified?.isp_name ?? null,
+        as_info: identified?.as_info ?? null,
+        detected_region: identified?.detected_region ?? null,
+        detected_city: identified?.detected_city ?? null,
+        latitude: identified?.latitude ?? null,
+        longitude: identified?.longitude ?? null,
+      });
+      await wait(700);
       assertActive(runId, runIdRef);
 
       setPhase("server");
-      setShowFindPanel(true);
-      setGaugeValue(0);
-
-      const probeResult = await findBestServer();
+      const probeResult = await findBestServer(identified?.isp_name || null);
       assertActive(runId, runIdRef);
       const probes = probeResult?.probes || [];
       setFindProbes(probes);
-      await wait(Math.max(900, probes.length * 180));
+      await wait(Math.min(1400, 400 + probes.length * 40));
       assertActive(runId, runIdRef);
 
       const manual =
@@ -228,11 +253,13 @@ export default function SpeedTestExperience({
       };
       setFindSelected(chosenWithLatency);
       setActiveServer(chosenWithLatency);
-      await wait(1200);
+      accum.selection_score = chosenWithLatency.score ?? probeResult?.best_server?.score ?? null;
+      await wait(1100);
       assertActive(runId, runIdRef);
       setShowFindPanel(false);
 
       const selectedServerId = chosenWithLatency.id;
+      accum.server_id = selectedServerId;
       accum.server_label = `${chosenWithLatency.name} · ${chosenWithLatency.location}`;
 
       const server = await measureServerPhase(selectedServerId);
@@ -242,10 +269,15 @@ export default function SpeedTestExperience({
         http_response_ms: server.http_response_ms,
         ipv4_ok: server.ipv4_ok,
         ipv6_ok: server.ipv6_ok,
-        public_ip: server.public_ip,
-        isp_name: server.isp_name,
-        as_info: server.as_info,
+        public_ip: server.public_ip || accum.public_ip,
+        isp_name: server.isp_name || accum.isp_name,
+        as_info: server.as_info || accum.as_info,
+        detected_region: server.detected_region || accum.detected_region,
+        detected_city: server.detected_city || accum.detected_city,
+        latitude: server.latitude ?? accum.latitude,
+        longitude: server.longitude ?? accum.longitude,
         server_label: `${chosenWithLatency.name} · ${chosenWithLatency.location}`,
+        server_id: selectedServerId,
       });
       accum.errors.push(...(server.errors ?? []));
       setIspName(server.isp_name || null);
@@ -377,9 +409,10 @@ export default function SpeedTestExperience({
         {showFindPanel && (
           <FindServerPanel
             visible
+            identity={identity}
+            identityReady={identityReady}
             probes={findProbes}
             selected={findSelected}
-            title="Finding Best Server…"
           />
         )}
       </AnimatePresence>
@@ -409,7 +442,8 @@ export default function SpeedTestExperience({
 
       {(phase === "idle" || phase === "done") && (
         <p className="sq-test-hint">
-          Choose a Mauritius server (or Auto), then tap GO to start a new measurement session.
+          Tap GO. SmartQoS identifies your connection and chooses a test server.
+          Use Advanced Settings for a manual server.
         </p>
       )}
     </div>

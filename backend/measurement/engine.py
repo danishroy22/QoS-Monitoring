@@ -28,7 +28,10 @@ DEFAULT_DNS_HOST = "cloudflare.com"
 DEFAULT_HTTP_URL = "https://www.cloudflare.com/cdn-cgi/trace"
 DEFAULT_DOWNLOAD_URL = "https://speed.cloudflare.com/__down?bytes=5000000"
 DEFAULT_UPLOAD_URL = "https://speed.cloudflare.com/__up"
-DEFAULT_IPINFO_URL = "http://ip-api.com/json/?fields=status,message,query,isp,org,as,mobile,proxy,hosting"
+DEFAULT_IPINFO_URL = (
+    "http://ip-api.com/json/?fields=status,message,query,isp,org,as,"
+    "country,regionName,city,lat,lon"
+)
 
 DOWNLOAD_CHUNK_BYTES = 512 * 1024
 DOWNLOAD_PASS_BYTES_FULL = 25_000_000
@@ -61,7 +64,14 @@ class MeasurementResult:
     public_ip: str | None = None
     isp_name: str | None = None
     as_info: str | None = None
+    detected_region: str | None = None
+    detected_city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    server_id: str | None = None
     server_label: str = "cloudflare"
+    selection_mode: str | None = None
+    selection_score: float | None = None
     errors: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -272,6 +282,10 @@ def run_server_probe(*, server_id: str | None = None) -> dict[str, Any]:
     public_ip: str | None = None
     isp_name: str | None = None
     as_info: str | None = None
+    detected_region: str | None = None
+    detected_city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
     try:
         dns_lookup_ms = round(measure_dns_lookup(server.get("dns_host") or DEFAULT_DNS_HOST), 2)
@@ -295,6 +309,10 @@ def run_server_probe(*, server_id: str | None = None) -> dict[str, Any]:
         public_ip = info.get("public_ip")
         isp_name = info.get("isp_name")
         as_info = info.get("as_info")
+        detected_region = info.get("detected_region")
+        detected_city = info.get("detected_city")
+        latitude = info.get("latitude")
+        longitude = info.get("longitude")
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         errors.append(f"isp: {exc}")
 
@@ -307,6 +325,10 @@ def run_server_probe(*, server_id: str | None = None) -> dict[str, Any]:
         "public_ip": public_ip,
         "isp_name": isp_name,
         "as_info": as_info,
+        "detected_region": detected_region,
+        "detected_city": detected_city,
+        "latitude": latitude,
+        "longitude": longitude,
         "server_label": label,
         "server_id": server["id"],
         "errors": errors,
@@ -363,19 +385,41 @@ def check_ip_version_support() -> tuple[bool, bool]:
     return ipv4_ok, ipv6_ok
 
 
-def lookup_public_ip_and_isp(url: str = DEFAULT_IPINFO_URL) -> dict[str, str | None]:
+def lookup_public_ip_and_isp(url: str = DEFAULT_IPINFO_URL) -> dict[str, Any]:
+    """Approximate network identity from a public IP lookup.
+
+    ISP/ASN/region are contextual only — they are not ground-truth operator
+    records and must not be treated as perfectly accurate.
+    """
+    empty = {
+        "public_ip": None,
+        "isp_name": None,
+        "as_info": None,
+        "detected_region": None,
+        "detected_city": None,
+        "country": None,
+        "latitude": None,
+        "longitude": None,
+    }
     try:
         data, _ = _http_get(url, timeout=10.0)
         payload = json.loads(data.decode("utf-8"))
         if payload.get("status") == "fail":
-            return {"public_ip": None, "isp_name": None, "as_info": None}
+            return empty
+        lat = payload.get("lat")
+        lon = payload.get("lon")
         return {
             "public_ip": payload.get("query"),
             "isp_name": payload.get("isp") or payload.get("org"),
             "as_info": payload.get("as"),
+            "detected_region": payload.get("regionName") or payload.get("city"),
+            "detected_city": payload.get("city"),
+            "country": payload.get("country"),
+            "latitude": float(lat) if lat is not None else None,
+            "longitude": float(lon) if lon is not None else None,
         }
     except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError):
-        return {"public_ip": None, "isp_name": None, "as_info": None}
+        return empty
 
 
 def measure_ping(
@@ -468,6 +512,7 @@ class NetworkMeasurementEngine:
 
     def run(self) -> MeasurementResult:
         result = MeasurementResult(timestamp=_now())
+        result.server_id = self.server_id
         result.server_label = f"{self.server['name']} · {self.server['location']}"
 
         try:
@@ -526,6 +571,10 @@ class NetworkMeasurementEngine:
             result.public_ip = info.get("public_ip")
             result.isp_name = info.get("isp_name")
             result.as_info = info.get("as_info")
+            result.detected_region = info.get("detected_region")
+            result.detected_city = info.get("detected_city")
+            result.latitude = info.get("latitude")
+            result.longitude = info.get("longitude")
         except Exception as exc:  # noqa: BLE001
             result.errors.append(f"isp: {exc}")
 

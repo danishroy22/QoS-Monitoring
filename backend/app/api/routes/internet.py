@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.internet import (
     AssistantResponse,
+    ConnectionIdentity,
     DashboardResponse,
     HistoryResponse,
     IspResponse,
@@ -43,10 +44,20 @@ def speedtest_servers() -> SpeedTestServersResponse:
     )
 
 
+@router.post("/speedtest/identify", response_model=ConnectionIdentity)
+def speedtest_identify() -> ConnectionIdentity:
+    """Approximate public IP / ISP / region (network identity, not ground truth)."""
+    return internet_service.identify_connection()
+
+
 @router.post("/speedtest/find-server", response_model=SpeedTestFindServerResponse)
-def speedtest_find_server() -> SpeedTestFindServerResponse:
-    """Simulate latency probes and recommend the best Mauritius server."""
-    return SpeedTestFindServerResponse.model_validate(internet_service.find_best_server())
+def speedtest_find_server(
+    isp_name: str | None = Query(default=None),
+) -> SpeedTestFindServerResponse:
+    """Probe Mauritius servers and recommend the best candidate (additive scoring)."""
+    return SpeedTestFindServerResponse.model_validate(
+        internet_service.find_best_server(detected_isp=isp_name)
+    )
 
 
 @router.post("/speedtest", response_model=SpeedTestRunResponse)

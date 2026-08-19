@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 /** Horizontal stage rail under the premium speedometer. */
 export const TEST_STAGES = [
-  { id: "init", label: "Initializing" },
+  { id: "init", label: "Identify Connection" },
   { id: "server", label: "Finding Best Server" },
   { id: "download", label: "Download" },
   { id: "upload", label: "Upload" },

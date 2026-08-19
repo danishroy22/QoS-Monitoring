@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.speedtest import SpeedTestResult
 from app.schemas.internet import (
     AssistantResponse,
+    ConnectionIdentity,
     DashboardResponse,
     HealthBreakdown,
     HistoryResponse,
@@ -27,6 +28,7 @@ from measurement.engine import (
     NetworkMeasurementEngine,
     iter_download_progress,
     iter_upload_progress,
+    lookup_public_ip_and_isp,
     run_latency_probe,
     run_server_probe,
     DOWNLOAD_PASS_BYTES_FULL,
@@ -69,8 +71,17 @@ def _row_dict(row: SpeedTestResult) -> dict:
 def run_speedtest(
     db: Session, *, quick: bool = False, server_id: str | None = None
 ) -> SpeedTestRunResponse:
+    mode = "manual" if server_id else "auto"
+    selection_score = None
+    if not server_id:
+        identity = lookup_public_ip_and_isp()
+        found = probe_mauritius_servers(detected_isp=identity.get("isp_name"))
+        server_id = found.get("best_server_id")
+        selection_score = (found.get("best_server") or {}).get("score")
     engine = NetworkMeasurementEngine(quick=quick, server_id=server_id)
     measured = engine.run()
+    measured.selection_mode = mode
+    measured.selection_score = selection_score
     return _persist_measurement(db, measured)
 
 
@@ -78,8 +89,13 @@ def list_speed_servers() -> list[dict]:
     return list_servers()
 
 
-def find_best_server() -> dict:
-    return probe_mauritius_servers()
+def find_best_server(detected_isp: str | None = None) -> dict:
+    return probe_mauritius_servers(detected_isp=detected_isp)
+
+
+def identify_connection() -> ConnectionIdentity:
+    info = lookup_public_ip_and_isp()
+    return ConnectionIdentity.model_validate(info)
 
 
 def measure_server_phase(*, server_id: str | None = None) -> SpeedTestServerPhaseOut:
@@ -132,7 +148,14 @@ def complete_speedtest(db: Session, payload: SpeedTestCompleteRequest) -> SpeedT
         public_ip=payload.public_ip,
         isp_name=payload.isp_name,
         as_info=payload.as_info,
+        detected_region=payload.detected_region,
+        detected_city=payload.detected_city,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
         server_label=payload.server_label,
+        server_id=payload.server_id,
+        selection_mode=payload.selection_mode,
+        selection_score=payload.selection_score,
         errors=list(payload.errors),
     )
     return _persist_measurement(db, measured)
@@ -155,7 +178,14 @@ def _persist_measurement(db: Session, measured) -> SpeedTestRunResponse:
         public_ip=measured.public_ip,
         isp_name=measured.isp_name,
         as_info=measured.as_info,
+        detected_region=getattr(measured, "detected_region", None),
+        detected_city=getattr(measured, "detected_city", None),
+        latitude=getattr(measured, "latitude", None),
+        longitude=getattr(measured, "longitude", None),
+        server_id=getattr(measured, "server_id", None),
         server_label=measured.server_label,
+        selection_mode=getattr(measured, "selection_mode", None),
+        selection_score=getattr(measured, "selection_score", None),
         overall_score=health.overall_score,
         overall_rating=health.overall_rating,
         errors_json=json.dumps(measured.errors) if measured.errors else None,
@@ -221,6 +251,8 @@ def get_isp(db: Session) -> IspResponse:
         ipv4_ok=latest.ipv4_ok,
         ipv6_ok=latest.ipv6_ok,
         last_tested_at=latest.timestamp,
+        detected_region=getattr(latest, "detected_region", None),
+        detected_city=getattr(latest, "detected_city", None),
     )
 
 

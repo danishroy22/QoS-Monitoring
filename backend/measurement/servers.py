@@ -8,7 +8,6 @@ local measurement backend (not third-party branded Speedtest nodes).
 from __future__ import annotations
 
 import json
-import random
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -58,6 +57,7 @@ def _normalize(entry: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": server_id,
         "name": str(entry.get("name") or server_id),
+        "operator": str(entry.get("operator") or entry.get("name") or server_id),
         "location": str(entry.get("location") or "Mauritius"),
         "country": str(entry.get("country") or "Mauritius"),
         "type": str(entry.get("type") or "ISP Test Server"),
@@ -65,6 +65,8 @@ def _normalize(entry: dict[str, Any]) -> dict[str, Any]:
         "host": host,
         "ookla_server_id": entry.get("ookla_server_id"),
         "distance_km": entry.get("distance_km"),
+        "latitude": entry.get("latitude"),
+        "longitude": entry.get("longitude"),
         "base_latency_ms": float(entry.get("base_latency_ms") or 20),
         **MEASUREMENT_BACKEND,
         "ping_host": ping_host,
@@ -82,6 +84,7 @@ def list_servers() -> list[dict[str, Any]]:
         {
             "id": s["id"],
             "name": s["name"],
+            "operator": s.get("operator"),
             "location": s["location"],
             "country": s.get("country"),
             "type": s["type"],
@@ -89,6 +92,8 @@ def list_servers() -> list[dict[str, Any]]:
             "host": s.get("host"),
             "ookla_server_id": s.get("ookla_server_id"),
             "distance_km": s.get("distance_km"),
+            "latitude": s.get("latitude"),
+            "longitude": s.get("longitude"),
             "supports_upload": True,
             "upload_note": None,
         }
@@ -103,30 +108,25 @@ def get_server(server_id: str | None) -> dict[str, Any]:
     return catalog[server_id]
 
 
-def probe_mauritius_servers() -> dict[str, Any]:
-    """Simulate latency checks against the configured Mauritius servers."""
-    results: list[dict[str, Any]] = []
-    for server in _catalog().values():
-        base = float(server.get("base_latency_ms") or 20)
-        # Small realistic jitter around the configured base latency.
-        latency = round(max(4.0, random.uniform(base - 3.5, base + 4.5)), 1)
-        results.append(
-            {
-                "id": server["id"],
-                "name": server["name"],
-                "location": server["location"],
-                "type": server["type"],
-                "status": server["status"],
-                "host": server.get("host"),
-                "distance_km": server.get("distance_km"),
-                "latency_ms": latency,
-            }
-        )
+def probe_mauritius_servers(detected_isp: str | None = None) -> dict[str, Any]:
+    """Probe catalogue hosts and score them. Replaces simulated latency ranking."""
+    from measurement.server_selection import probe_and_score_servers
 
-    results.sort(key=lambda row: row["latency_ms"])
-    best = results[0] if results else None
-    return {
-        "probes": results,
-        "best_server_id": best["id"] if best else DEFAULT_SERVER_ID,
-        "best_server": best,
-    }
+    payload = probe_and_score_servers(list(_catalog().values()), detected_isp=detected_isp)
+    if not payload.get("best_server_id"):
+        payload["best_server_id"] = DEFAULT_SERVER_ID
+        catalog = _catalog()
+        fallback = catalog.get(DEFAULT_SERVER_ID) or next(iter(catalog.values()), None)
+        if fallback and not payload.get("best_server"):
+            payload["best_server"] = {
+                "id": fallback["id"],
+                "name": fallback["name"],
+                "location": fallback["location"],
+                "type": fallback.get("type"),
+                "status": fallback.get("status") or "Online",
+                "host": fallback.get("host"),
+                "distance_km": fallback.get("distance_km"),
+                "latency_ms": None,
+                "score": 0,
+            }
+    return payload

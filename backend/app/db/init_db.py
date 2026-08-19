@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
@@ -63,9 +63,32 @@ def seed_nodes(db: Session) -> int:
     return added
 
 
+def ensure_speed_test_columns() -> None:
+    """Add nullable Phase 1 columns to existing SQLite/Postgres speed_tests tables."""
+    inspector = inspect(engine)
+    if "speed_tests" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("speed_tests")}
+    statements = {
+        "detected_region": "ALTER TABLE speed_tests ADD COLUMN detected_region VARCHAR(120)",
+        "detected_city": "ALTER TABLE speed_tests ADD COLUMN detected_city VARCHAR(120)",
+        "latitude": "ALTER TABLE speed_tests ADD COLUMN latitude FLOAT",
+        "longitude": "ALTER TABLE speed_tests ADD COLUMN longitude FLOAT",
+        "server_id": "ALTER TABLE speed_tests ADD COLUMN server_id VARCHAR(80)",
+        "selection_mode": "ALTER TABLE speed_tests ADD COLUMN selection_mode VARCHAR(20)",
+        "selection_score": "ALTER TABLE speed_tests ADD COLUMN selection_score FLOAT",
+    }
+    with engine.begin() as conn:
+        for name, sql in statements.items():
+            if name not in existing:
+                conn.execute(text(sql))
+                logger.info("Added speed_tests.%s", name)
+
+
 def init_db(seed: bool = True) -> None:
     """Create tables and optionally seed default nodes."""
     create_tables()
+    ensure_speed_test_columns()
     if seed:
         with SessionLocal() as db:
             count = seed_nodes(db)

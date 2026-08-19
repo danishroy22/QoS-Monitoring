@@ -43,6 +43,15 @@ Background interval-based measurements using the same engine. See `docs/monitori
 - `POST /monitoring/start`
 - `POST /monitoring/stop`
 
+## Supervisor Phase 1 — Automatic server and ISP selection
+
+Consumer GO identifies the connection, then probes catalogue hosts with TCP RTT
+and a documented score. Manual selection is under Advanced Settings.
+See `docs/server-selection-methodology.md`.
+
+- `POST /speedtest/identify`
+- `POST /speedtest/find-server` (real probes; optional `isp_name`)
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

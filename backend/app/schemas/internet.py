@@ -27,8 +27,11 @@ class SpeedTestServerOption(BaseModel):
     type: str | None = "ISP Test Server"
     status: str = "Online"
     host: str | None = None
+    operator: str | None = None
     ookla_server_id: int | None = None
     distance_km: float | int | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     supports_upload: bool = True
     upload_note: str | None = None
 
@@ -46,14 +49,22 @@ class SpeedTestServerProbe(BaseModel):
     type: str | None = None
     status: str = "Online"
     host: str | None = None
+    operator: str | None = None
     distance_km: float | int | None = None
-    latency_ms: float
+    latency_ms: float | None = None
+    packet_loss_pct: float | None = None
+    score: float | None = None
+    isp_affinity: bool = False
+    reachable: bool | None = None
+    probe_method: str | None = None
 
 
 class SpeedTestFindServerResponse(BaseModel):
     probes: list[SpeedTestServerProbe]
     best_server_id: str
     best_server: SpeedTestServerProbe | None = None
+    weights: dict[str, float] | None = None
+    detected_isp: str | None = None
 
 
 class SpeedTestPhaseQuery(BaseModel):
@@ -68,6 +79,10 @@ class SpeedTestServerPhaseOut(BaseModel):
     public_ip: str | None = None
     isp_name: str | None = None
     as_info: str | None = None
+    detected_region: str | None = None
+    detected_city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     server_label: str = "emtel"
     server_id: str | None = None
     errors: list[str] = []
@@ -93,7 +108,14 @@ class SpeedTestCompleteRequest(BaseModel):
     public_ip: str | None = None
     isp_name: str | None = None
     as_info: str | None = None
+    detected_region: str | None = None
+    detected_city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     server_label: str = "cloudflare"
+    server_id: str | None = None
+    selection_mode: str | None = None
+    selection_score: float | None = None
     errors: list[str] = []
 
 
@@ -128,7 +150,14 @@ class SpeedTestResultOut(BaseModel):
     public_ip: str | None
     isp_name: str | None
     as_info: str | None
+    detected_region: str | None = None
+    detected_city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    server_id: str | None = None
     server_label: str
+    selection_mode: str | None = None
+    selection_score: float | None = None
     overall_score: int | None
     overall_rating: str | None
 
@@ -157,6 +186,21 @@ class StatisticsResponse(BaseModel):
     latest_rating: str | None
 
 
+class ConnectionIdentity(BaseModel):
+    public_ip: str | None = None
+    isp_name: str | None = None
+    as_info: str | None = None
+    detected_region: str | None = None
+    detected_city: str | None = None
+    country: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    approximate: bool = True
+    note: str = (
+        "IP-based ISP and location are approximate network identity, not a guaranteed operator record."
+    )
+
+
 class IspResponse(BaseModel):
     public_ip: str | None
     isp_name: str | None
@@ -164,6 +208,8 @@ class IspResponse(BaseModel):
     ipv4_ok: bool | None = None
     ipv6_ok: bool | None = None
     last_tested_at: datetime | None = None
+    detected_region: str | None = None
+    detected_city: str | None = None
 
 
 class DashboardResponse(BaseModel):

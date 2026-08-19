@@ -2,6 +2,7 @@
   {
     "id": "emtel-arsenal-7763",
     "name": "Emtel Ltd",
+    "operator": "Emtel",
     "location": "Arsenal",
     "country": "Mauritius",
     "type": "ISP Test Server",
@@ -9,11 +10,14 @@
     "host": "speedtest-asn.emtel.com:8080",
     "ookla_server_id": 7763,
     "distance_km": 18,
-    "base_latency_ms": 16
+    "base_latency_ms": 16,
+    "latitude": -20.105,
+    "longitude": 57.536
   },
   {
     "id": "emtel-ebene-18276",
     "name": "Emtel LTD",
+    "operator": "Emtel",
     "location": "Ebene",
     "country": "Mauritius",
     "type": "ISP Test Server",
@@ -21,11 +25,14 @@
     "host": "speedtest-asn.emtel.com:8080",
     "ookla_server_id": 18276,
     "distance_km": 8,
-    "base_latency_ms": 12
+    "base_latency_ms": 12,
+    "latitude": -20.243,
+    "longitude": 57.490
   },
   {
     "id": "btl-ebene-6829",
     "name": "Bharat Telecom Ltd",
+    "operator": "Bharat Telecom",
     "location": "Ebene",
     "country": "Mauritius",
     "type": "ISP Test Server",
@@ -33,11 +40,14 @@
     "host": "speedtest1.btl.mu:8080",
     "ookla_server_id": 6829,
     "distance_km": 8,
-    "base_latency_ms": 13
+    "base_latency_ms": 13,
+    "latitude": -20.243,
+    "longitude": 57.490
   },
   {
     "id": "rogers-ebene-11499",
     "name": "Rogers Capital Technology Services",
+    "operator": "Rogers",
     "location": "Ebene",
     "country": "Mauritius",
     "type": "Neutral Data Centre Test Server",
@@ -45,11 +55,14 @@
     "host": "speedtest.webhop.net:8080",
     "ookla_server_id": 11499,
     "distance_km": 9,
-    "base_latency_ms": 14
+    "base_latency_ms": 14,
+    "latitude": -20.243,
+    "longitude": 57.490
   },
   {
     "id": "mt-floreal-3827",
     "name": "Mauritius Telecom Ltd",
+    "operator": "Mauritius Telecom / Orange",
     "location": "Floreal",
     "country": "Mauritius",
     "type": "ISP Test Server",
@@ -57,11 +70,14 @@
     "host": "speedtestfl.orange.mu:8080",
     "ookla_server_id": 3827,
     "distance_km": 16,
-    "base_latency_ms": 17
+    "base_latency_ms": 17,
+    "latitude": -20.310,
+    "longitude": 57.507
   },
   {
     "id": "rogers-latour-19342",
     "name": "Rogers Capital Technology Services Ltd",
+    "operator": "Rogers",
     "location": "La Tour Koenig",
     "country": "Mauritius",
     "type": "Neutral Data Centre Test Server",
@@ -69,11 +85,14 @@
     "host": "speedtest3.webhop.net:8080",
     "ookla_server_id": 19342,
     "distance_km": 12,
-    "base_latency_ms": 15
+    "base_latency_ms": 15,
+    "latitude": -20.186,
+    "longitude": 57.462
   },
   {
     "id": "mt-portlouis-1704",
     "name": "Mauritius Telecom",
+    "operator": "Mauritius Telecom / Orange",
     "location": "Port Louis",
     "country": "Mauritius",
     "type": "ISP Test Server",
@@ -81,11 +100,14 @@
     "host": "202.123.3.108:8080",
     "ookla_server_id": 1704,
     "distance_km": 5,
-    "base_latency_ms": 10
+    "base_latency_ms": 10,
+    "latitude": -20.161,
+    "longitude": 57.501
   },
   {
     "id": "orange-portlouis-3825",
     "name": "Orange",
+    "operator": "Mauritius Telecom / Orange",
     "location": "Port Louis",
     "country": "Mauritius",
     "type": "ISP Test Server",
@@ -93,11 +115,14 @@
     "host": "speedtestmobile.orange.mu:8080",
     "ookla_server_id": 3825,
     "distance_km": 5,
-    "base_latency_ms": 11
+    "base_latency_ms": 11,
+    "latitude": -20.161,
+    "longitude": 57.501
   },
   {
     "id": "emtel-rosehill-18275",
     "name": "Emtel LTD",
+    "operator": "Emtel",
     "location": "Rose Hill",
     "country": "Mauritius",
     "type": "ISP Test Server",
@@ -105,11 +130,14 @@
     "host": "speedtest.emtel.com:8080",
     "ookla_server_id": 18275,
     "distance_km": 10,
-    "base_latency_ms": 13
+    "base_latency_ms": 13,
+    "latitude": -20.242,
+    "longitude": 57.466
   },
   {
     "id": "emtel-rosehill-2510",
     "name": "Emtel Ltd",
+    "operator": "Emtel",
     "location": "Rose-Hill",
     "country": "Mauritius",
     "type": "ISP Test Server",
@@ -117,11 +145,14 @@
     "host": "speedtest.emtel.com:8080",
     "ookla_server_id": 2510,
     "distance_km": 10,
-    "base_latency_ms": 13
+    "base_latency_ms": 13,
+    "latitude": -20.242,
+    "longitude": 57.466
   },
   {
     "id": "mt-rosehill-3813",
     "name": "Mauritius Telecom Ltd",
+    "operator": "Mauritius Telecom / Orange",
     "location": "Rose-Hill",
     "country": "Mauritius",
     "type": "ISP Test Server",
@@ -129,6 +160,8 @@
     "host": "speedtestrh2.orange.mu:8080",
     "ookla_server_id": 3813,
     "distance_km": 10,
-    "base_latency_ms": 14
+    "base_latency_ms": 14,
+    "latitude": -20.242,
+    "longitude": 57.466
   }
 ]

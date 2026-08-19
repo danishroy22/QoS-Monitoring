@@ -591,8 +591,57 @@ input {
   line-height: 1.4;
 }
 
-/* —— Mauritius server ecosystem —— */
-.mu-server-dropdown {
+.mu-advanced {
+  width: 100%;
+  max-width: 520px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.35);
+  padding: 10px 14px 12px;
+}
+
+.mu-advanced-summary {
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  list-style: none;
+}
+
+.mu-advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.mu-advanced[open] .mu-advanced-summary {
+  margin-bottom: 10px;
+  color: var(--ink-soft);
+}
+
+.mu-find-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.7);
+  animation: sqPulse 1.2s ease-out infinite;
+}
+
+.mu-find-row.is-pending {
+  opacity: 0.7;
+}
+
+.mu-find-row.is-miss {
+  opacity: 0.55;
+}
+
+.mu-find-note {
+  margin: 0 0 8px 28px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
   width: min(100%, 520px);
   display: grid;
   gap: 8px;

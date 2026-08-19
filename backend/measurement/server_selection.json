@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "description": "Configurable weights for automatic Mauritius test-server selection. ISP affinity is contextual only and must not force same-ISP servers.",
+  "probe": {
+    "samples": 2,
+    "timeout_seconds": 1.8,
+    "max_workers": 8
+  },
+  "caps": {
+    "latency_ms": 80,
+    "distance_km": 40
+  },
+  "weights": {
+    "latency": 0.45,
+    "packet_loss": 0.20,
+    "proximity": 0.15,
+    "status": 0.10,
+    "isp_affinity": 0.10
+  },
+  "rationale": {
+    "latency": "Short probe RTT is the strongest available signal of path suitability.",
+    "packet_loss": "Failed probe samples indicate an unreliable path to that host.",
+    "proximity": "Catalogue distance_km is a coarse geographic prior, not a measured path length.",
+    "status": "Offline catalogue entries must not be selected.",
+    "isp_affinity": "Same-operator names are contextual only; a closer/faster other-ISP server still wins."
+  }
+}

@@ -38,7 +38,8 @@ Open **http://127.0.0.1:5173** and click **GO**.
 | GET | `/monitoring/status` | Continuous monitoring status |
 | POST | `/monitoring/start` | Enable background monitoring |
 | POST | `/monitoring/stop` | Disable background monitoring |
-| GET | `/health` | API + database status |
+| POST | `/speedtest/identify` | Approximate IP / ISP / region |
+| POST | `/speedtest/find-server` | Probe and score Mauritius servers |
 | GET | `/admin/dashboard` | Administrator KPIs and ISP leaderboard |
 | GET | `/admin/report` | Administrator QoS PDF report |
 
