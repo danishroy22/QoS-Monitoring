@@ -142,6 +142,10 @@ export function streamUploadPhase(onEvent, options = {}) {
   return consumeSseStream("/speedtest/stream/upload", onEvent, options);
 }
 
+export function fetchMeasurementConfig() {
+  return request("/speedtest/config");
+}
+
 export function fetchHistory(limit = 50) {
   return request(`/history?limit=${limit}`);
 }

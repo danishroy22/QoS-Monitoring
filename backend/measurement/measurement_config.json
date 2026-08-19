@@ -1,0 +1,48 @@
+{
+  "version": "2.0",
+  "throughput_mode": "duration",
+  "note": "Default values are experimental starting points for the dissertation, not claimed optima.",
+  "full": {
+    "latency_packet_size": 32,
+    "latency_packet_count": 12,
+    "latency_timeout": 2.0,
+    "download_duration": 8.0,
+    "upload_duration": 6.0,
+    "download_connections": 1,
+    "upload_connections": 1,
+    "warmup_duration": 1.0,
+    "measurement_interval": 0.25,
+    "timeout": 20.0,
+    "retry_count": 1,
+    "download_chunk_bytes": 524288,
+    "upload_chunk_bytes": 2000000
+  },
+  "quick": {
+    "latency_packet_size": 32,
+    "latency_packet_count": 4,
+    "latency_timeout": 1.5,
+    "download_duration": 3.0,
+    "upload_duration": 2.0,
+    "download_connections": 1,
+    "upload_connections": 1,
+    "warmup_duration": 0.4,
+    "measurement_interval": 0.25,
+    "timeout": 12.0,
+    "retry_count": 1,
+    "download_chunk_bytes": 262144,
+    "upload_chunk_bytes": 1000000
+  },
+  "rationale": {
+    "latency_packet_size": "ICMP payload size in bytes (OS ping -l/-s). 32 B matches common OS defaults. Not claimed optimal; used so tests are repeatable.",
+    "latency_packet_count": "Number of probe packets. More samples improve min/max/median stability but lengthen the test.",
+    "latency_timeout": "Per-probe timeout in seconds so a lost packet does not stall the phase.",
+    "download_duration": "Measurement window in seconds after warm-up. Duration-based throughput is comparable across line rates.",
+    "upload_duration": "Same idea for uplink. Independent of download so asymmetric links can be studied.",
+    "download_connections": "Parallel HTTP GET streams. Default 1 avoids confounding multi-flow aggregation; increase only as an experiment.",
+    "upload_connections": "Parallel HTTP POST streams. Default 1 for the same reason.",
+    "warmup_duration": "Seconds discarded at the start so TCP slow-start is less dominant in the average.",
+    "measurement_interval": "How often live Mbps is sampled for SSE and peak detection.",
+    "timeout": "Socket/HTTP timeout for a single transfer attempt.",
+    "retry_count": "Extra attempts after a failed connection. Failures are recorded, not silently dropped."
+  }
+}

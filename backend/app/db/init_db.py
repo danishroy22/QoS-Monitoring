@@ -64,7 +64,7 @@ def seed_nodes(db: Session) -> int:
 
 
 def ensure_speed_test_columns() -> None:
-    """Add nullable Phase 1 columns to existing SQLite/Postgres speed_tests tables."""
+    """Add nullable Phase 1–2 columns to existing SQLite/Postgres speed_tests tables."""
     inspector = inspect(engine)
     if "speed_tests" not in inspector.get_table_names():
         return
@@ -77,6 +77,27 @@ def ensure_speed_test_columns() -> None:
         "server_id": "ALTER TABLE speed_tests ADD COLUMN server_id VARCHAR(80)",
         "selection_mode": "ALTER TABLE speed_tests ADD COLUMN selection_mode VARCHAR(20)",
         "selection_score": "ALTER TABLE speed_tests ADD COLUMN selection_score FLOAT",
+        "ping_min_ms": "ALTER TABLE speed_tests ADD COLUMN ping_min_ms FLOAT",
+        "ping_max_ms": "ALTER TABLE speed_tests ADD COLUMN ping_max_ms FLOAT",
+        "ping_median_ms": "ALTER TABLE speed_tests ADD COLUMN ping_median_ms FLOAT",
+        "packets_sent": "ALTER TABLE speed_tests ADD COLUMN packets_sent INTEGER",
+        "packets_received": "ALTER TABLE speed_tests ADD COLUMN packets_received INTEGER",
+        "packets_lost": "ALTER TABLE speed_tests ADD COLUMN packets_lost INTEGER",
+        "latency_samples_json": "ALTER TABLE speed_tests ADD COLUMN latency_samples_json TEXT",
+        "download_bytes": "ALTER TABLE speed_tests ADD COLUMN download_bytes INTEGER",
+        "download_duration_s": "ALTER TABLE speed_tests ADD COLUMN download_duration_s FLOAT",
+        "download_connections": "ALTER TABLE speed_tests ADD COLUMN download_connections INTEGER",
+        "download_peak_mbps": "ALTER TABLE speed_tests ADD COLUMN download_peak_mbps FLOAT",
+        "upload_bytes": "ALTER TABLE speed_tests ADD COLUMN upload_bytes INTEGER",
+        "upload_duration_s": "ALTER TABLE speed_tests ADD COLUMN upload_duration_s FLOAT",
+        "upload_connections": "ALTER TABLE speed_tests ADD COLUMN upload_connections INTEGER",
+        "upload_peak_mbps": "ALTER TABLE speed_tests ADD COLUMN upload_peak_mbps FLOAT",
+        "dns_ok": "ALTER TABLE speed_tests ADD COLUMN dns_ok BOOLEAN",
+        "dns_resolver": "ALTER TABLE speed_tests ADD COLUMN dns_resolver VARCHAR(80)",
+        "tcp_connect_ms": "ALTER TABLE speed_tests ADD COLUMN tcp_connect_ms FLOAT",
+        "tls_handshake_ms": "ALTER TABLE speed_tests ADD COLUMN tls_handshake_ms FLOAT",
+        "http_ok": "ALTER TABLE speed_tests ADD COLUMN http_ok BOOLEAN",
+        "measurement_config_version": "ALTER TABLE speed_tests ADD COLUMN measurement_config_version VARCHAR(20)",
     }
     with engine.begin() as conn:
         for name, sql in statements.items():

@@ -24,6 +24,7 @@ from app.schemas.internet import (
     StatisticsResponse,
 )
 from measurement.assistant import build_assistant_context, generate_network_assistant
+from measurement.config import load_version
 from measurement.engine import (
     NetworkMeasurementEngine,
     iter_download_progress,
@@ -31,14 +32,6 @@ from measurement.engine import (
     lookup_public_ip_and_isp,
     run_latency_probe,
     run_server_probe,
-    DOWNLOAD_PASS_BYTES_FULL,
-    DOWNLOAD_PASS_BYTES_QUICK,
-    DOWNLOAD_PASSES_FULL,
-    DOWNLOAD_PASSES_QUICK,
-    UPLOAD_TOTAL_BYTES_FULL,
-    UPLOAD_TOTAL_BYTES_QUICK,
-    PING_COUNT_FULL,
-    PING_COUNT_QUICK,
 )
 from measurement.servers import list_servers, probe_mauritius_servers
 from measurement.qos_analysis import analyze_qos
@@ -106,29 +99,26 @@ def measure_server_phase(*, server_id: str | None = None) -> SpeedTestServerPhas
 def measure_latency_phase(
     *, quick: bool = False, server_id: str | None = None
 ) -> SpeedTestLatencyPhaseOut:
-    count = PING_COUNT_QUICK if quick else PING_COUNT_FULL
-    payload = run_latency_probe(count=count, server_id=server_id)
+    payload = run_latency_probe(quick=quick, server_id=server_id)
     return SpeedTestLatencyPhaseOut.model_validate(payload)
 
 
 def iter_download_phase(*, quick: bool = False, server_id: str | None = None):
-    if quick:
-        yield from iter_download_progress(
-            bytes_per_pass=DOWNLOAD_PASS_BYTES_QUICK,
-            passes=DOWNLOAD_PASSES_QUICK,
-            server_id=server_id,
-        )
-    else:
-        yield from iter_download_progress(
-            bytes_per_pass=DOWNLOAD_PASS_BYTES_FULL,
-            passes=DOWNLOAD_PASSES_FULL,
-            server_id=server_id,
-        )
+    yield from iter_download_progress(quick=quick, server_id=server_id)
 
 
 def iter_upload_phase(*, quick: bool = False, server_id: str | None = None):
-    total = UPLOAD_TOTAL_BYTES_QUICK if quick else UPLOAD_TOTAL_BYTES_FULL
-    yield from iter_upload_progress(total_bytes=total, server_id=server_id)
+    yield from iter_upload_progress(quick=quick, server_id=server_id)
+
+
+def _samples_json(measured) -> str | None:
+    raw = getattr(measured, "latency_samples_json", None)
+    if isinstance(raw, str) and raw:
+        return raw
+    samples = getattr(measured, "latency_samples", None)
+    if samples:
+        return json.dumps(list(samples))
+    return None
 
 
 def complete_speedtest(db: Session, payload: SpeedTestCompleteRequest) -> SpeedTestRunResponse:
@@ -156,6 +146,27 @@ def complete_speedtest(db: Session, payload: SpeedTestCompleteRequest) -> SpeedT
         server_id=payload.server_id,
         selection_mode=payload.selection_mode,
         selection_score=payload.selection_score,
+        ping_min_ms=payload.ping_min_ms,
+        ping_max_ms=payload.ping_max_ms,
+        ping_median_ms=payload.ping_median_ms,
+        packets_sent=payload.packets_sent,
+        packets_received=payload.packets_received,
+        packets_lost=payload.packets_lost,
+        latency_samples_json=_samples_json(payload),
+        download_bytes=payload.download_bytes,
+        download_duration_s=payload.download_duration_s,
+        download_connections=payload.download_connections,
+        download_peak_mbps=payload.download_peak_mbps,
+        upload_bytes=payload.upload_bytes,
+        upload_duration_s=payload.upload_duration_s,
+        upload_connections=payload.upload_connections,
+        upload_peak_mbps=payload.upload_peak_mbps,
+        dns_ok=payload.dns_ok,
+        dns_resolver=payload.dns_resolver,
+        tcp_connect_ms=payload.tcp_connect_ms,
+        tls_handshake_ms=payload.tls_handshake_ms,
+        http_ok=payload.http_ok,
+        measurement_config_version=payload.measurement_config_version or load_version(),
         errors=list(payload.errors),
     )
     return _persist_measurement(db, measured)
@@ -186,6 +197,28 @@ def _persist_measurement(db: Session, measured) -> SpeedTestRunResponse:
         server_label=measured.server_label,
         selection_mode=getattr(measured, "selection_mode", None),
         selection_score=getattr(measured, "selection_score", None),
+        ping_min_ms=getattr(measured, "ping_min_ms", None),
+        ping_max_ms=getattr(measured, "ping_max_ms", None),
+        ping_median_ms=getattr(measured, "ping_median_ms", None),
+        packets_sent=getattr(measured, "packets_sent", None),
+        packets_received=getattr(measured, "packets_received", None),
+        packets_lost=getattr(measured, "packets_lost", None),
+        latency_samples_json=_samples_json(measured),
+        download_bytes=getattr(measured, "download_bytes", None),
+        download_duration_s=getattr(measured, "download_duration_s", None),
+        download_connections=getattr(measured, "download_connections", None),
+        download_peak_mbps=getattr(measured, "download_peak_mbps", None),
+        upload_bytes=getattr(measured, "upload_bytes", None),
+        upload_duration_s=getattr(measured, "upload_duration_s", None),
+        upload_connections=getattr(measured, "upload_connections", None),
+        upload_peak_mbps=getattr(measured, "upload_peak_mbps", None),
+        dns_ok=getattr(measured, "dns_ok", None),
+        dns_resolver=getattr(measured, "dns_resolver", None),
+        tcp_connect_ms=getattr(measured, "tcp_connect_ms", None),
+        tls_handshake_ms=getattr(measured, "tls_handshake_ms", None),
+        http_ok=getattr(measured, "http_ok", None),
+        measurement_config_version=getattr(measured, "measurement_config_version", None)
+        or load_version(),
         overall_score=health.overall_score,
         overall_rating=health.overall_rating,
         errors_json=json.dumps(measured.errors) if measured.errors else None,

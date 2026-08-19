@@ -40,6 +40,7 @@ Open **http://127.0.0.1:5173** and click **GO**.
 | POST | `/monitoring/stop` | Disable background monitoring |
 | POST | `/speedtest/identify` | Approximate IP / ISP / region |
 | POST | `/speedtest/find-server` | Probe and score Mauritius servers |
+| GET | `/speedtest/config` | Documented measurement parameters |
 | GET | `/admin/dashboard` | Administrator KPIs and ISP leaderboard |
 | GET | `/admin/report` | Administrator QoS PDF report |
 
@@ -69,6 +70,8 @@ Full module map: **[PROGRAM_STRUCTURE.md](PROGRAM_STRUCTURE.md)**
 - `backend/app/` — FastAPI, models, services, routes
 - `frontend/` — Internet Quality Dashboard + Administrator Portal
 - `docs/admin-portal.md` — Phase 18 operator analytics
+- `docs/server-selection-methodology.md` — Phase 1 server ranking
+- `docs/measurement-methodology.md` — Phase 2 measurement parameters
 - `backend/simulator/` — legacy synthetic NOC generator (still available under `/api`)
 
 ## Optional Generative AI

@@ -52,6 +52,14 @@ See `docs/server-selection-methodology.md`.
 - `POST /speedtest/identify`
 - `POST /speedtest/find-server` (real probes; optional `isp_name`)
 
+## Supervisor Phase 2 — Documented measurement methodology
+
+Throughput is duration-windowed (not a fixed byte pass). Parameters live in
+`backend/measurement/measurement_config.json`. Defaults are experimental,
+not claimed optima. See `docs/measurement-methodology.md`.
+
+- `GET /speedtest/config`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

@@ -44,6 +44,14 @@ def speedtest_servers() -> SpeedTestServersResponse:
     )
 
 
+@router.get("/speedtest/config")
+def speedtest_config() -> dict:
+    """Documented measurement parameters and formulas (Phase 2)."""
+    from measurement.config import public_methodology
+
+    return public_methodology()
+
+
 @router.post("/speedtest/identify", response_model=ConnectionIdentity)
 def speedtest_identify() -> ConnectionIdentity:
     """Approximate public IP / ISP / region (network identity, not ground truth)."""

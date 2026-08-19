@@ -276,6 +276,11 @@ export default function SpeedTestExperience({
         detected_city: server.detected_city || accum.detected_city,
         latitude: server.latitude ?? accum.latitude,
         longitude: server.longitude ?? accum.longitude,
+        tcp_connect_ms: server.tcp_connect_ms ?? null,
+        tls_handshake_ms: server.tls_handshake_ms ?? null,
+        dns_ok: server.dns_ok ?? null,
+        http_ok: server.http_ok ?? null,
+        dns_resolver: server.dns_resolver ?? null,
         server_label: `${chosenWithLatency.name} · ${chosenWithLatency.location}`,
         server_id: selectedServerId,
       });
@@ -299,6 +304,11 @@ export default function SpeedTestExperience({
       assertActive(runId, runIdRef);
       const down = downloadFinal?.download_mbps ?? downloadFinal?.mbps ?? 0;
       accum.download_mbps = down;
+      accum.download_bytes = downloadFinal?.bytes_transferred ?? null;
+      accum.download_duration_s = downloadFinal?.duration_s ?? null;
+      accum.download_connections = downloadFinal?.connections ?? null;
+      accum.download_peak_mbps = downloadFinal?.peak_mbps ?? null;
+      accum.measurement_config_version = downloadFinal?.config_version ?? null;
       accum.errors.push(...(downloadFinal?.errors ?? []));
       setDownloadMbps(down);
       setGaugeValue(down);
@@ -320,6 +330,12 @@ export default function SpeedTestExperience({
       assertActive(runId, runIdRef);
       const up = uploadFinal?.upload_mbps ?? uploadFinal?.mbps ?? 0;
       accum.upload_mbps = up;
+      accum.upload_bytes = uploadFinal?.bytes_transferred ?? null;
+      accum.upload_duration_s = uploadFinal?.duration_s ?? null;
+      accum.upload_connections = uploadFinal?.connections ?? null;
+      accum.upload_peak_mbps = uploadFinal?.peak_mbps ?? null;
+      accum.measurement_config_version =
+        uploadFinal?.config_version || accum.measurement_config_version || null;
       accum.errors.push(...(uploadFinal?.errors ?? []));
       setUploadMbps(up);
       setGaugeValue(up);
@@ -334,6 +350,13 @@ export default function SpeedTestExperience({
       accum.ping_ms = latency.ping_ms;
       accum.jitter_ms = latency.jitter_ms;
       accum.packet_loss_pct = latency.packet_loss_pct;
+      accum.ping_min_ms = latency.ping_min_ms ?? null;
+      accum.ping_max_ms = latency.ping_max_ms ?? null;
+      accum.ping_median_ms = latency.ping_median_ms ?? null;
+      accum.packets_sent = latency.packets_sent ?? null;
+      accum.packets_received = latency.packets_received ?? null;
+      accum.packets_lost = latency.packets_lost ?? null;
+      accum.latency_samples = latency.latency_samples ?? null;
       accum.errors.push(...(latency.errors ?? []));
       setPingMs(latency.ping_ms);
       setJitterMs(latency.jitter_ms);

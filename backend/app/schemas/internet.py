@@ -85,14 +85,29 @@ class SpeedTestServerPhaseOut(BaseModel):
     longitude: float | None = None
     server_label: str = "emtel"
     server_id: str | None = None
+    tcp_connect_ms: float | None = None
+    tls_handshake_ms: float | None = None
+    dns_ok: bool | None = None
+    http_ok: bool | None = None
+    dns_resolver: str | None = None
     errors: list[str] = []
 
 
 class SpeedTestLatencyPhaseOut(BaseModel):
     ping_ms: float | None = None
+    ping_min_ms: float | None = None
+    ping_max_ms: float | None = None
+    ping_median_ms: float | None = None
     jitter_ms: float | None = None
     packet_loss_pct: float | None = None
+    packets_sent: int | None = None
+    packets_received: int | None = None
+    packets_lost: int | None = None
+    latency_samples: list[float] | None = None
+    probe_method: str | None = None
+    latency_packet_size: int | None = None
     errors: list[str] = []
+    server_id: str | None = None
 
 
 class SpeedTestCompleteRequest(BaseModel):
@@ -116,6 +131,27 @@ class SpeedTestCompleteRequest(BaseModel):
     server_id: str | None = None
     selection_mode: str | None = None
     selection_score: float | None = None
+    ping_min_ms: float | None = None
+    ping_max_ms: float | None = None
+    ping_median_ms: float | None = None
+    packets_sent: int | None = None
+    packets_received: int | None = None
+    packets_lost: int | None = None
+    latency_samples: list[float] | None = None
+    download_bytes: int | None = None
+    download_duration_s: float | None = None
+    download_connections: int | None = None
+    download_peak_mbps: float | None = None
+    upload_bytes: int | None = None
+    upload_duration_s: float | None = None
+    upload_connections: int | None = None
+    upload_peak_mbps: float | None = None
+    dns_ok: bool | None = None
+    dns_resolver: str | None = None
+    tcp_connect_ms: float | None = None
+    tls_handshake_ms: float | None = None
+    http_ok: bool | None = None
+    measurement_config_version: str | None = None
     errors: list[str] = []
 
 
@@ -158,6 +194,27 @@ class SpeedTestResultOut(BaseModel):
     server_label: str
     selection_mode: str | None = None
     selection_score: float | None = None
+    ping_min_ms: float | None = None
+    ping_max_ms: float | None = None
+    ping_median_ms: float | None = None
+    packets_sent: int | None = None
+    packets_received: int | None = None
+    packets_lost: int | None = None
+    latency_samples_json: str | None = None
+    download_bytes: int | None = None
+    download_duration_s: float | None = None
+    download_connections: int | None = None
+    download_peak_mbps: float | None = None
+    upload_bytes: int | None = None
+    upload_duration_s: float | None = None
+    upload_connections: int | None = None
+    upload_peak_mbps: float | None = None
+    dns_ok: bool | None = None
+    dns_resolver: str | None = None
+    tcp_connect_ms: float | None = None
+    tls_handshake_ms: float | None = None
+    http_ok: bool | None = None
+    measurement_config_version: str | None = None
     overall_score: int | None
     overall_rating: str | None
 

@@ -153,6 +153,7 @@ This is the **real** internet test used by the GO button.
 | File | Responsibility |
 |------|----------------|
 | `engine.py` | Download, upload, ping, jitter, loss, DNS, HTTP, ISP/IP |
+| `config.py` / `measurement_config.json` | Documented duration, packet, connection parameters |
 | `qos_analysis.py` | Weighted score and Excellent → Critical ratings |
 | `servers.py` | Load and normalise Mauritius server catalog |
 | `mauritius_servers.json` | Server metadata (name, location, host, …) |
