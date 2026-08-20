@@ -10,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 from app.models import speedtest as _speedtest  # noqa: F401
 from app.models import monitoring as _monitoring  # noqa: F401
+from app.models import package as _package  # noqa: F401
 
 
 @pytest.fixture()

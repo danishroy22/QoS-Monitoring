@@ -23,6 +23,10 @@ import {
   fetchAdminHeatmap,
   fetchAdminHistory,
   fetchAdminIspAnalytics,
+  fetchAdminPackages,
+  createAdminPackage,
+  updateAdminPackage,
+  deactivateAdminPackage,
   updateAdminBenchmarks,
 } from "../api/client";
 import GlassCard from "../components/ui/GlassCard";
@@ -35,11 +39,21 @@ import { ADMIN_PALETTE, AdminBarChart, AdminLineChart, metricDataset } from "./A
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "isp", label: "ISP Analytics" },
+  { id: "packages", label: "Packages" },
   { id: "benchmarks", label: "Benchmarks" },
   { id: "history", label: "History" },
   { id: "heatmap", label: "Heatmap" },
   { id: "ai", label: "AI Analysis" },
 ];
+
+const EMPTY_PACKAGE_FORM = {
+  isp_name: "",
+  package_name: "",
+  advertised_download_mbps: 100,
+  advertised_upload_mbps: 40,
+  notes: "",
+  active: true,
+};
 
 const DAY_OPTIONS = [
   { value: 7, label: "7 days" },
@@ -94,6 +108,10 @@ export default function AdminPortal({ onBack }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [profileDraft, setProfileDraft] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [packages, setPackages] = useState([]);
+  const [packageForm, setPackageForm] = useState(EMPTY_PACKAGE_FORM);
+  const [editingPackageId, setEditingPackageId] = useState(null);
+  const [savingPackage, setSavingPackage] = useState(false);
 
   const loadCore = useCallback(async () => {
     setLoading(true);
@@ -126,6 +144,15 @@ export default function AdminPortal({ onBack }) {
     }
   }, [granularity, days]);
 
+  const loadPackages = useCallback(async () => {
+    try {
+      const data = await fetchAdminPackages(false);
+      setPackages(data?.packages || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
   useEffect(() => {
     loadCore();
   }, [loadCore]);
@@ -133,6 +160,10 @@ export default function AdminPortal({ onBack }) {
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
+
+  useEffect(() => {
+    if (tab === "packages") loadPackages();
+  }, [tab, loadPackages]);
 
   useEffect(() => {
     if (tab !== "ai") return undefined;
@@ -177,6 +208,59 @@ export default function AdminPortal({ onBack }) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleSavePackage = async () => {
+    setSavingPackage(true);
+    setError(null);
+    try {
+      const payload = {
+        ...packageForm,
+        advertised_download_mbps: Number(packageForm.advertised_download_mbps),
+        advertised_upload_mbps: Number(packageForm.advertised_upload_mbps),
+      };
+      if (editingPackageId) {
+        await updateAdminPackage(editingPackageId, payload);
+      } else {
+        await createAdminPackage(payload);
+      }
+      setPackageForm(EMPTY_PACKAGE_FORM);
+      setEditingPackageId(null);
+      await loadPackages();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingPackage(false);
+    }
+  };
+
+  const handleEditPackage = (pkg) => {
+    setEditingPackageId(pkg.id);
+    setPackageForm({
+      isp_name: pkg.isp_name,
+      package_name: pkg.package_name,
+      advertised_download_mbps: pkg.advertised_download_mbps,
+      advertised_upload_mbps: pkg.advertised_upload_mbps,
+      notes: pkg.notes || "",
+      active: pkg.active,
+    });
+  };
+
+  const handleDeactivatePackage = async (packageId) => {
+    setSavingPackage(true);
+    setError(null);
+    try {
+      await deactivateAdminPackage(packageId);
+      if (editingPackageId === packageId) {
+        setEditingPackageId(null);
+        setPackageForm(EMPTY_PACKAGE_FORM);
+      }
+      await loadPackages();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingPackage(false);
     }
   };
 
@@ -253,6 +337,23 @@ export default function AdminPortal({ onBack }) {
           )}
           {tab === "isp" && (
             <IspSection key="isp" isps={isps} labels={labels} />
+          )}
+          {tab === "packages" && (
+            <PackagesSection
+              key="packages"
+              packages={packages}
+              form={packageForm}
+              setForm={setPackageForm}
+              editingId={editingPackageId}
+              onSave={handleSavePackage}
+              onEdit={handleEditPackage}
+              onDeactivate={handleDeactivatePackage}
+              onCancelEdit={() => {
+                setEditingPackageId(null);
+                setPackageForm(EMPTY_PACKAGE_FORM);
+              }}
+              saving={savingPackage}
+            />
           )}
           {tab === "benchmarks" && (
             <BenchmarkSection
@@ -437,6 +538,148 @@ function OverviewSection({ dashboard }) {
                     <td>{formatNumber(row.avg_ping_ms, 0)}</td>
                     <td>{formatNumber(row.avg_jitter_ms, 1)}</td>
                     <td>{formatNumber(row.avg_packet_loss_pct, 2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </GlassCard>
+    </motion.div>
+  );
+}
+
+function PackagesSection({
+  packages,
+  form,
+  setForm,
+  editingId,
+  onSave,
+  onEdit,
+  onDeactivate,
+  onCancelEdit,
+  saving,
+}) {
+  const onField = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <motion.div
+      className="admin-section"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+    >
+      <GlassCard className="iq-panel" delay={0.04}>
+        <PanelHeader
+          title={editingId ? "Edit internet package" : "Add internet package"}
+          subtitle="Administrator-configured advertised speeds — nothing commercial is hard-coded"
+        />
+        <div className="admin-profile-grid">
+          <label className="mon-field">
+            <span>ISP</span>
+            <input
+              type="text"
+              value={form.isp_name}
+              placeholder="e.g. Emtel"
+              onChange={(e) => onField("isp_name", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>Package</span>
+            <input
+              type="text"
+              value={form.package_name}
+              placeholder="e.g. 100 Mbps"
+              onChange={(e) => onField("package_name", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>Advertised download (Mbps)</span>
+            <input
+              type="number"
+              step="0.1"
+              min="0.1"
+              value={form.advertised_download_mbps}
+              onChange={(e) => onField("advertised_download_mbps", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>Advertised upload (Mbps)</span>
+            <input
+              type="number"
+              step="0.1"
+              min="0.1"
+              value={form.advertised_upload_mbps}
+              onChange={(e) => onField("advertised_upload_mbps", e.target.value)}
+            />
+          </label>
+          <label className="mon-field" style={{ gridColumn: "1 / -1" }}>
+            <span>Notes</span>
+            <input
+              type="text"
+              value={form.notes}
+              placeholder="Optional"
+              onChange={(e) => onField("notes", e.target.value)}
+            />
+          </label>
+          <div className="mon-actions">
+            <SoftButton onClick={onSave} loading={saving} disabled={!form.isp_name || !form.package_name}>
+              {editingId ? "Update package" : "Add package"}
+            </SoftButton>
+            {editingId ? (
+              <SoftButton variant="ghost" onClick={onCancelEdit}>
+                Cancel
+              </SoftButton>
+            ) : null}
+          </div>
+        </div>
+      </GlassCard>
+
+      <GlassCard className="iq-panel" delay={0.08}>
+        <PanelHeader
+          title="Configured packages"
+          subtitle="Used for download/upload fulfilment % when selected on a test"
+        />
+        {packages.length === 0 ? (
+          <EmptyHint>
+            No packages yet. Add ISP plans here so measurements can report fulfilment against
+            advertised speeds.
+          </EmptyHint>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>ISP</th>
+                  <th>Package</th>
+                  <th>↓ Mbps</th>
+                  <th>↑ Mbps</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {packages.map((pkg) => (
+                  <tr key={pkg.id}>
+                    <td>{pkg.isp_name}</td>
+                    <td>{pkg.package_name}</td>
+                    <td>{formatNumber(pkg.advertised_download_mbps, 1)}</td>
+                    <td>{formatNumber(pkg.advertised_upload_mbps, 1)}</td>
+                    <td>{pkg.active ? "Active" : "Inactive"}</td>
+                    <td>
+                      <div className="admin-toolbar-actions">
+                        <SoftButton variant="ghost" onClick={() => onEdit(pkg)}>
+                          Edit
+                        </SoftButton>
+                        {pkg.active ? (
+                          <SoftButton variant="ghost" onClick={() => onDeactivate(pkg.id)}>
+                            Deactivate
+                          </SoftButton>
+                        ) : null}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

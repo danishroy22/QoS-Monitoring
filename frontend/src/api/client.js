@@ -180,6 +180,34 @@ export function stopMonitoring() {
   return request("/monitoring/stop", { method: "POST" });
 }
 
+export function fetchPackages() {
+  return request("/packages");
+}
+
+export function fetchAdminPackages(activeOnly = false) {
+  return request(`/admin/packages?active_only=${activeOnly ? "true" : "false"}`);
+}
+
+export function createAdminPackage(payload) {
+  return request("/admin/packages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminPackage(packageId, payload) {
+  return request(`/admin/packages/${packageId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deactivateAdminPackage(packageId) {
+  return request(`/admin/packages/${packageId}`, { method: "DELETE" });
+}
+
 export function fetchAdminDashboard(days = 90) {
   return request(`/admin/dashboard?days=${days}`);
 }

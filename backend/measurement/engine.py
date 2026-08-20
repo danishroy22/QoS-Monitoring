@@ -71,6 +71,11 @@ class MeasurementResult:
     isp_name: str | None = None
     as_info: str | None = None
     internet_package: str | None = None
+    package_id: int | None = None
+    advertised_download_mbps: float | None = None
+    advertised_upload_mbps: float | None = None
+    download_fulfilment_pct: float | None = None
+    upload_fulfilment_pct: float | None = None
     detected_region: str | None = None
     detected_city: str | None = None
     latitude: float | None = None

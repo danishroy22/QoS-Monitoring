@@ -13,6 +13,7 @@ export default defineConfig({
       "/dashboard": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/statistics": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/aggregations": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/packages": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/isp": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/recommendation": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/monitoring": { target: "http://127.0.0.1:8000", changeOrigin: true },

@@ -68,6 +68,17 @@ buckets). Aggregations: `GET /aggregations?by=isp|package|region|date|day_of_wee
 
 SQL schema + views: `database/supabase/speed_tests.sql`. Setup: `docs/phase3-supabase.md`.
 
+## Supervisor Phase 4 — Internet packages + fulfilment
+
+Administrator-configured ISP packages (no hard-coded commercial plans). Optional
+selection under Advanced Settings. When present:
+
+`fulfilment% = measured / advertised × 100` for download and upload.
+
+- Admin: `GET/POST/PUT/DELETE /admin/packages`
+- Consumer list: `GET /packages`
+- Docs: `docs/phase4-packages.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

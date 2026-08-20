@@ -42,6 +42,8 @@ Open **http://127.0.0.1:5173** and click **GO**.
 | POST | `/speedtest/find-server` | Probe and score Mauritius servers |
 | GET | `/speedtest/config` | Documented measurement parameters |
 | GET | `/aggregations` | Traceable aggregates by ISP/package/region/date/… |
+| GET | `/packages` | Active ISP packages (admin-configured) |
+| GET | `/admin/packages` | Manage ISP packages (CRUD) |
 | GET | `/admin/dashboard` | Administrator KPIs and ISP leaderboard |
 | GET | `/admin/report` | Administrator QoS PDF report |
 
@@ -74,6 +76,7 @@ Full module map: **[PROGRAM_STRUCTURE.md](PROGRAM_STRUCTURE.md)**
 - `docs/server-selection-methodology.md` — Phase 1 server ranking
 - `docs/measurement-methodology.md` — Phase 2 measurement parameters
 - `docs/phase3-supabase.md` — Phase 3 traceable DB on Supabase
+- `docs/phase4-packages.md` — Phase 4 ISP packages + fulfilment %
 - `backend/simulator/` — legacy synthetic NOC generator (still available under `/api`)
 
 ## Optional Generative AI

@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import {
   completeSpeedTest,
+  fetchPackages,
   fetchRecommendation,
   fetchSpeedServers,
   findBestServer,
@@ -18,6 +19,7 @@ import TestStageProgress from "./TestStageProgress";
 
 const SETTLE_MS = 2800;
 const SERVER_STORAGE_KEY = "smartqos_mu_server_id";
+const PACKAGE_STORAGE_KEY = "smartqos_mu_package_id";
 const AUTO_ID = "auto";
 
 function wait(ms) {
@@ -53,8 +55,12 @@ export default function SpeedTestExperience({
   const [jitterMs, setJitterMs] = useState(null);
   const [packetLossPct, setPacketLossPct] = useState(null);
   const [servers, setServers] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [preferredServerId, setPreferredServerId] = useState(
     () => localStorage.getItem(SERVER_STORAGE_KEY) || AUTO_ID
+  );
+  const [preferredPackageId, setPreferredPackageId] = useState(
+    () => localStorage.getItem(PACKAGE_STORAGE_KEY) || ""
   );
   const [activeServer, setActiveServer] = useState(null);
   const [ispName, setIspName] = useState(null);
@@ -121,6 +127,18 @@ export default function SpeedTestExperience({
       .catch(() => {
         if (!cancelled) setServers([]);
       });
+    fetchPackages()
+      .then((payload) => {
+        if (cancelled) return;
+        const list = payload?.packages || [];
+        setPackages(list);
+        const saved = localStorage.getItem(PACKAGE_STORAGE_KEY) || "";
+        const valid = !saved || list.some((p) => String(p.id) === String(saved));
+        setPreferredPackageId(valid ? saved : "");
+      })
+      .catch(() => {
+        if (!cancelled) setPackages([]);
+      });
     return () => {
       cancelled = true;
     };
@@ -129,6 +147,11 @@ export default function SpeedTestExperience({
   useEffect(() => {
     localStorage.setItem(SERVER_STORAGE_KEY, preferredServerId);
   }, [preferredServerId]);
+
+  useEffect(() => {
+    if (preferredPackageId) localStorage.setItem(PACKAGE_STORAGE_KEY, preferredPackageId);
+    else localStorage.removeItem(PACKAGE_STORAGE_KEY);
+  }, [preferredPackageId]);
 
   const clearTimers = () => {
     timersRef.current.forEach((id) => {
@@ -191,6 +214,10 @@ export default function SpeedTestExperience({
       server_id: null,
       selection_mode: preferredServerId === AUTO_ID ? "auto" : "manual",
       selection_score: null,
+      package_id: preferredPackageId ? Number(preferredPackageId) : null,
+      internet_package:
+        packages.find((p) => String(p.id) === String(preferredPackageId))?.package_name ||
+        null,
       errors: [],
     };
 
@@ -428,6 +455,9 @@ export default function SpeedTestExperience({
         servers={servers}
         selectedId={preferredServerId}
         onSelect={setPreferredServerId}
+        packages={packages}
+        selectedPackageId={preferredPackageId}
+        onSelectPackage={setPreferredPackageId}
         disabled={busy}
       />
 

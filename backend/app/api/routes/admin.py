@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,13 @@ from app.schemas.admin import (
     HistoryAnalyticsResponse,
     IspAnalyticsResponse,
 )
-from app.services import admin_ai, admin_report, admin_service
+from app.schemas.packages import (
+    InternetPackageCreate,
+    InternetPackageListResponse,
+    InternetPackageOut,
+    InternetPackageUpdate,
+)
+from app.services import admin_ai, admin_report, admin_service, package_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -43,6 +49,55 @@ def admin_isp_analytics(
 ) -> IspAnalyticsResponse:
     """Per-ISP download, upload, ping, jitter, loss, and QoS averages."""
     return admin_service.get_isp_analytics(db, days=days)
+
+
+@router.get("/packages", response_model=InternetPackageListResponse)
+def admin_list_packages(
+    active_only: bool = Query(default=False),
+    db: Session = Depends(get_db),
+) -> InternetPackageListResponse:
+    """List administrator-configured ISP packages (Phase 4)."""
+    packages = package_service.list_packages(db, active_only=active_only)
+    return InternetPackageListResponse(count=len(packages), packages=packages)
+
+
+@router.post("/packages", response_model=InternetPackageOut, status_code=201)
+def admin_create_package(
+    payload: InternetPackageCreate,
+    db: Session = Depends(get_db),
+) -> InternetPackageOut:
+    """Add a configurable ISP package (advertised download / upload)."""
+    try:
+        return package_service.create_package(db, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/packages/{package_id}", response_model=InternetPackageOut)
+def admin_update_package(
+    package_id: int,
+    payload: InternetPackageUpdate,
+    db: Session = Depends(get_db),
+) -> InternetPackageOut:
+    """Update an existing ISP package."""
+    updated = package_service.update_package(db, package_id, payload)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Package not found")
+    return updated
+
+
+@router.delete("/packages/{package_id}", response_model=InternetPackageOut)
+def admin_deactivate_package(
+    package_id: int,
+    db: Session = Depends(get_db),
+) -> InternetPackageOut:
+    """Soft-delete a package (sets active=false)."""
+    updated = package_service.deactivate_package(db, package_id)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Package not found")
+    return updated
 
 
 @router.get("/benchmarks", response_model=BenchmarkResponse)

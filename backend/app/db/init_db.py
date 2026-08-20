@@ -16,6 +16,7 @@ from app.db.session import SessionLocal, engine
 from app.models.network import NetworkNode
 from app.models import speedtest as _speedtest_model  # noqa: F401 — register table
 from app.models import monitoring as _monitoring_model  # noqa: F401 — register table
+from app.models import package as _package_model  # noqa: F401 — register table
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,11 @@ def ensure_speed_test_columns() -> None:
         "measurement_config_version": "ALTER TABLE speed_tests ADD COLUMN measurement_config_version VARCHAR(20)",
         "client_hash": "ALTER TABLE speed_tests ADD COLUMN client_hash VARCHAR(64)",
         "internet_package": "ALTER TABLE speed_tests ADD COLUMN internet_package VARCHAR(120)",
+        "package_id": "ALTER TABLE speed_tests ADD COLUMN package_id INTEGER",
+        "advertised_download_mbps": "ALTER TABLE speed_tests ADD COLUMN advertised_download_mbps FLOAT",
+        "advertised_upload_mbps": "ALTER TABLE speed_tests ADD COLUMN advertised_upload_mbps FLOAT",
+        "download_fulfilment_pct": "ALTER TABLE speed_tests ADD COLUMN download_fulfilment_pct FLOAT",
+        "upload_fulfilment_pct": "ALTER TABLE speed_tests ADD COLUMN upload_fulfilment_pct FLOAT",
         "server_operator": "ALTER TABLE speed_tests ADD COLUMN server_operator VARCHAR(120)",
         "server_location": "ALTER TABLE speed_tests ADD COLUMN server_location VARCHAR(120)",
         "server_type": "ALTER TABLE speed_tests ADD COLUMN server_type VARCHAR(120)",

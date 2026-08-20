@@ -54,6 +54,18 @@ def speedtest_config() -> dict:
     return public_methodology()
 
 
+@router.get("/packages", response_model=None)
+def list_public_packages(
+    db: Session = Depends(get_db),
+):
+    """Active ISP packages for optional consumer selection (Phase 4)."""
+    from app.schemas.packages import InternetPackageListResponse
+    from app.services import package_service
+
+    packages = package_service.list_packages(db, active_only=True)
+    return InternetPackageListResponse(count=len(packages), packages=packages)
+
+
 @router.post("/speedtest/identify", response_model=ConnectionIdentity)
 def speedtest_identify() -> ConnectionIdentity:
     """Approximate public IP / ISP / region (network identity, not ground truth)."""

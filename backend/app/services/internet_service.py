@@ -179,6 +179,7 @@ def complete_speedtest(db: Session, payload: SpeedTestCompleteRequest) -> SpeedT
         isp_name=payload.isp_name,
         as_info=payload.as_info,
         internet_package=payload.internet_package,
+        package_id=payload.package_id,
         detected_region=payload.detected_region,
         detected_city=payload.detected_city,
         latitude=payload.latitude,
@@ -219,6 +220,9 @@ def complete_speedtest(db: Session, payload: SpeedTestCompleteRequest) -> SpeedT
 def _persist_measurement(db: Session, measured) -> SpeedTestRunResponse:
     _enrich_server_context(measured)
     _apply_privacy_and_buckets(measured)
+    from app.services.package_service import apply_package_to_measurement
+
+    apply_package_to_measurement(db, measured)
     health = analyze_qos(measured.to_dict())
 
     row = SpeedTestResult(
@@ -237,6 +241,11 @@ def _persist_measurement(db: Session, measured) -> SpeedTestRunResponse:
         isp_name=measured.isp_name,
         as_info=measured.as_info,
         internet_package=getattr(measured, "internet_package", None),
+        package_id=getattr(measured, "package_id", None),
+        advertised_download_mbps=getattr(measured, "advertised_download_mbps", None),
+        advertised_upload_mbps=getattr(measured, "advertised_upload_mbps", None),
+        download_fulfilment_pct=getattr(measured, "download_fulfilment_pct", None),
+        upload_fulfilment_pct=getattr(measured, "upload_fulfilment_pct", None),
         detected_region=getattr(measured, "detected_region", None),
         detected_city=getattr(measured, "detected_city", None),
         latitude=getattr(measured, "latitude", None),
