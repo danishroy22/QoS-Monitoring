@@ -33,8 +33,15 @@ class Settings(BaseSettings):
     database_url: str = Field(
         default=f"sqlite:///{(BACKEND_DIR / 'qos_monitoring.db').as_posix()}"
     )
+    # Optional Supabase Postgres URL (preferred over database_url when set).
+    # Example: postgresql+psycopg://postgres.xxx:PASSWORD@aws-0-...pooler.supabase.com:6543/postgres?sslmode=require
+    supabase_db_url: str = ""
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     seed_nodes: bool = True
+
+    # Phase 3 — privacy / traceability
+    client_hash_salt: str = "smartqos-dev-salt-change-me"
+    store_public_ip: bool = True
 
     # Phase 6 — Generative AI (OpenAI-compatible). Leave api_key empty to use
     # the deterministic offline fallback (recommended for demos without billing).
@@ -45,12 +52,24 @@ class Settings(BaseSettings):
     ai_force_fallback: bool = False
 
     @property
+    def resolved_database_url(self) -> str:
+        """Prefer Supabase connection string when configured."""
+        supabase = (self.supabase_db_url or "").strip()
+        if supabase:
+            return supabase
+        return self.database_url
+
+    @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
     def is_sqlite(self) -> bool:
-        return self.database_url.startswith("sqlite")
+        return self.resolved_database_url.startswith("sqlite")
+
+    @property
+    def uses_supabase(self) -> bool:
+        return bool((self.supabase_db_url or "").strip())
 
     @property
     def ai_enabled(self) -> bool:

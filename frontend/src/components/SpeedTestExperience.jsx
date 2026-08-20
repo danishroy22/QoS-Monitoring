@@ -254,6 +254,9 @@ export default function SpeedTestExperience({
       setFindSelected(chosenWithLatency);
       setActiveServer(chosenWithLatency);
       accum.selection_score = chosenWithLatency.score ?? probeResult?.best_server?.score ?? null;
+      accum.server_operator = chosenWithLatency.operator ?? null;
+      accum.server_location = chosenWithLatency.location ?? null;
+      accum.server_type = chosenWithLatency.type ?? null;
       await wait(1100);
       assertActive(runId, runIdRef);
       setShowFindPanel(false);

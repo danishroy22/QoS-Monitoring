@@ -64,7 +64,7 @@ def seed_nodes(db: Session) -> int:
 
 
 def ensure_speed_test_columns() -> None:
-    """Add nullable Phase 1–2 columns to existing SQLite/Postgres speed_tests tables."""
+    """Add nullable Phase 1–3 columns to existing SQLite/Postgres speed_tests tables."""
     inspector = inspect(engine)
     if "speed_tests" not in inspector.get_table_names():
         return
@@ -98,6 +98,14 @@ def ensure_speed_test_columns() -> None:
         "tls_handshake_ms": "ALTER TABLE speed_tests ADD COLUMN tls_handshake_ms FLOAT",
         "http_ok": "ALTER TABLE speed_tests ADD COLUMN http_ok BOOLEAN",
         "measurement_config_version": "ALTER TABLE speed_tests ADD COLUMN measurement_config_version VARCHAR(20)",
+        "client_hash": "ALTER TABLE speed_tests ADD COLUMN client_hash VARCHAR(64)",
+        "internet_package": "ALTER TABLE speed_tests ADD COLUMN internet_package VARCHAR(120)",
+        "server_operator": "ALTER TABLE speed_tests ADD COLUMN server_operator VARCHAR(120)",
+        "server_location": "ALTER TABLE speed_tests ADD COLUMN server_location VARCHAR(120)",
+        "server_type": "ALTER TABLE speed_tests ADD COLUMN server_type VARCHAR(120)",
+        "test_date": "ALTER TABLE speed_tests ADD COLUMN test_date VARCHAR(10)",
+        "day_of_week": "ALTER TABLE speed_tests ADD COLUMN day_of_week INTEGER",
+        "hour_utc": "ALTER TABLE speed_tests ADD COLUMN hour_utc INTEGER",
     }
     with engine.begin() as conn:
         for name, sql in statements.items():

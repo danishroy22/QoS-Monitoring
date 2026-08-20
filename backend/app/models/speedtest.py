@@ -15,7 +15,11 @@ def _utcnow() -> datetime:
 
 
 class SpeedTestResult(Base):
-    """One stored run from the Network Measurement Engine."""
+    """One stored run from the Network Measurement Engine.
+
+    Phase 3 adds traceable context (client hash, package, server metadata, and
+    UTC time buckets) so rows can be aggregated without unnecessary PII.
+    """
 
     __tablename__ = "speed_tests"
 
@@ -33,16 +37,24 @@ class SpeedTestResult(Base):
     ipv4_ok: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     ipv6_ok: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     public_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    isp_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    client_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    isp_name: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
     as_info: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    detected_region: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    internet_package: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    detected_region: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     detected_city: Mapped[str | None] = mapped_column(String(120), nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    server_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    server_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     server_label: Mapped[str] = mapped_column(String(80), nullable=False, default="cloudflare")
+    server_operator: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    server_location: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    server_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
     selection_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
     selection_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    test_date: Mapped[str | None] = mapped_column(String(10), nullable=True, index=True)
+    day_of_week: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    hour_utc: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     ping_min_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     ping_max_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     ping_median_ms: Mapped[float | None] = mapped_column(Float, nullable=True)

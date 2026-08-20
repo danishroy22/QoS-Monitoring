@@ -60,6 +60,14 @@ not claimed optima. See `docs/measurement-methodology.md`.
 
 - `GET /speedtest/config`
 
+## Supervisor Phase 3 — Traceable DB (Supabase)
+
+Every `speed_tests` row stores measurement context (ISP, ASN, region, server
+operator/location/type, optional package, anonymised `client_hash`, UTC time
+buckets). Aggregations: `GET /aggregations?by=isp|package|region|date|day_of_week|hour|server|metric`.
+
+SQL schema + views: `database/supabase/speed_tests.sql`. Setup: `docs/phase3-supabase.md`.
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

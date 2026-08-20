@@ -146,6 +146,12 @@ export function fetchMeasurementConfig() {
   return request("/speedtest/config");
 }
 
+export function fetchAggregations(by = "isp", days = 30, metric = null) {
+  const params = new URLSearchParams({ by, days: String(days) });
+  if (metric) params.set("metric", metric);
+  return request(`/aggregations?${params}`);
+}
+
 export function fetchHistory(limit = 50) {
   return request(`/history?limit=${limit}`);
 }

@@ -8,8 +8,10 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.speedtest import SpeedTestResult
 from app.schemas.internet import (
+    AggregationResponse,
     AssistantResponse,
     ConnectionIdentity,
     DashboardResponse,
@@ -23,6 +25,8 @@ from app.schemas.internet import (
     SpeedTestServerPhaseOut,
     StatisticsResponse,
 )
+from app.services.aggregation_service import aggregate_measurements
+from app.services.privacy import anonymize_client_id, time_buckets
 from measurement.assistant import build_assistant_context, generate_network_assistant
 from measurement.config import load_version
 from measurement.engine import (
@@ -33,8 +37,44 @@ from measurement.engine import (
     run_latency_probe,
     run_server_probe,
 )
-from measurement.servers import list_servers, probe_mauritius_servers
+from measurement.servers import get_server, list_servers, probe_mauritius_servers
 from measurement.qos_analysis import analyze_qos
+
+
+def _enrich_server_context(measured) -> None:
+    """Fill operator/location/type from the Mauritius catalogue when missing."""
+    server_id = getattr(measured, "server_id", None)
+    if not server_id:
+        return
+    try:
+        server = get_server(server_id)
+    except Exception:  # noqa: BLE001
+        return
+    if not getattr(measured, "server_operator", None):
+        measured.server_operator = server.get("operator")
+    if not getattr(measured, "server_location", None):
+        measured.server_location = server.get("location")
+    if not getattr(measured, "server_type", None):
+        measured.server_type = server.get("type")
+    if not getattr(measured, "server_label", None) or measured.server_label in (
+        "cloudflare",
+        "Mauritius",
+    ):
+        measured.server_label = f"{server['name']} · {server['location']}"
+
+
+def _apply_privacy_and_buckets(measured) -> None:
+    settings = get_settings()
+    measured.client_hash = anonymize_client_id(
+        getattr(measured, "public_ip", None),
+        salt=settings.client_hash_salt,
+    )
+    if not settings.store_public_ip:
+        measured.public_ip = None
+    buckets = time_buckets(getattr(measured, "timestamp", None))
+    measured.test_date = buckets["test_date"]
+    measured.day_of_week = buckets["day_of_week"]
+    measured.hour_utc = buckets["hour_utc"]
 
 
 def _to_out(row: SpeedTestResult) -> SpeedTestResultOut:
@@ -138,12 +178,16 @@ def complete_speedtest(db: Session, payload: SpeedTestCompleteRequest) -> SpeedT
         public_ip=payload.public_ip,
         isp_name=payload.isp_name,
         as_info=payload.as_info,
+        internet_package=payload.internet_package,
         detected_region=payload.detected_region,
         detected_city=payload.detected_city,
         latitude=payload.latitude,
         longitude=payload.longitude,
         server_label=payload.server_label,
         server_id=payload.server_id,
+        server_operator=payload.server_operator,
+        server_location=payload.server_location,
+        server_type=payload.server_type,
         selection_mode=payload.selection_mode,
         selection_score=payload.selection_score,
         ping_min_ms=payload.ping_min_ms,
@@ -173,6 +217,8 @@ def complete_speedtest(db: Session, payload: SpeedTestCompleteRequest) -> SpeedT
 
 
 def _persist_measurement(db: Session, measured) -> SpeedTestRunResponse:
+    _enrich_server_context(measured)
+    _apply_privacy_and_buckets(measured)
     health = analyze_qos(measured.to_dict())
 
     row = SpeedTestResult(
@@ -187,16 +233,24 @@ def _persist_measurement(db: Session, measured) -> SpeedTestRunResponse:
         ipv4_ok=measured.ipv4_ok,
         ipv6_ok=measured.ipv6_ok,
         public_ip=measured.public_ip,
+        client_hash=getattr(measured, "client_hash", None),
         isp_name=measured.isp_name,
         as_info=measured.as_info,
+        internet_package=getattr(measured, "internet_package", None),
         detected_region=getattr(measured, "detected_region", None),
         detected_city=getattr(measured, "detected_city", None),
         latitude=getattr(measured, "latitude", None),
         longitude=getattr(measured, "longitude", None),
         server_id=getattr(measured, "server_id", None),
         server_label=measured.server_label,
+        server_operator=getattr(measured, "server_operator", None),
+        server_location=getattr(measured, "server_location", None),
+        server_type=getattr(measured, "server_type", None),
         selection_mode=getattr(measured, "selection_mode", None),
         selection_score=getattr(measured, "selection_score", None),
+        test_date=getattr(measured, "test_date", None),
+        day_of_week=getattr(measured, "day_of_week", None),
+        hour_utc=getattr(measured, "hour_utc", None),
         ping_min_ms=getattr(measured, "ping_min_ms", None),
         ping_max_ms=getattr(measured, "ping_max_ms", None),
         ping_median_ms=getattr(measured, "ping_median_ms", None),
@@ -232,6 +286,17 @@ def _persist_measurement(db: Session, measured) -> SpeedTestRunResponse:
         health=HealthBreakdown.model_validate(health.to_dict()),
         errors=measured.errors,
     )
+
+
+def get_aggregations(
+    db: Session,
+    *,
+    by: str = "isp",
+    days: int | None = 30,
+    metric: str | None = None,
+) -> AggregationResponse:
+    payload = aggregate_measurements(db, by=by, days=days, metric=metric)
+    return AggregationResponse.model_validate(payload)
 
 
 def list_history(db: Session, *, limit: int = 50) -> HistoryResponse:

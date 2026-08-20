@@ -178,11 +178,12 @@ Legacy HTTP surface remains under `/api/*`.
 ## 5. Database
 
 Default: SQLite at `backend/qos_monitoring.db`.  
-Optional: PostgreSQL via `QOS_DATABASE_URL`.
+**Dissertation target:** Supabase Postgres via `QOS_SUPABASE_DB_URL`
+(see `docs/phase3-supabase.md`). Optional local PostgreSQL via `QOS_DATABASE_URL`.
 
 | Table | Model | Used by |
 |-------|--------|---------|
-| `speed_tests` | `SpeedTestResult` | Consumer tests, monitoring samples, admin analytics |
+| `speed_tests` | `SpeedTestResult` | Consumer tests, monitoring samples, admin analytics, Phase 3 aggregations |
 | `monitoring_state` | `MonitoringState` | Enable/disable, interval, counters |
 | `network_nodes` | `NetworkNode` | Legacy NOC |
 | `qos_measurements` | `QoSMeasurement` | Legacy NOC |

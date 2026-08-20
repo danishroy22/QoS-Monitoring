@@ -12,8 +12,9 @@ scikit-learn==1.6.0
 numpy==2.2.1
 joblib==1.4.2
 
-# Optional: enable PostgreSQL by setting QOS_DATABASE_URL to a postgresql+psycopg URL.
-# psycopg[binary]==3.2.3
+# Optional: enable PostgreSQL / Supabase by setting QOS_SUPABASE_DB_URL
+# (or QOS_DATABASE_URL) to a postgresql+psycopg URL.
+psycopg[binary]==3.2.3
 
 # Phase 18 — administrator PDF reports
 reportlab==4.2.5

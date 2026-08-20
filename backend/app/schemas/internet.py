@@ -123,12 +123,16 @@ class SpeedTestCompleteRequest(BaseModel):
     public_ip: str | None = None
     isp_name: str | None = None
     as_info: str | None = None
+    internet_package: str | None = None
     detected_region: str | None = None
     detected_city: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     server_label: str = "cloudflare"
     server_id: str | None = None
+    server_operator: str | None = None
+    server_location: str | None = None
+    server_type: str | None = None
     selection_mode: str | None = None
     selection_score: float | None = None
     ping_min_ms: float | None = None
@@ -153,6 +157,36 @@ class SpeedTestCompleteRequest(BaseModel):
     http_ok: bool | None = None
     measurement_config_version: str | None = None
     errors: list[str] = []
+
+
+class AggregationBucket(BaseModel):
+    key: str
+    label: str
+    count: int
+    avg_download_mbps: float | None = None
+    avg_upload_mbps: float | None = None
+    avg_ping_ms: float | None = None
+    avg_jitter_ms: float | None = None
+    avg_packet_loss_pct: float | None = None
+    avg_dns_lookup_ms: float | None = None
+    avg_http_response_ms: float | None = None
+    avg_overall_score: float | None = None
+    server_operator: str | None = None
+    server_location: str | None = None
+    avg: float | None = None
+    min: float | None = None
+    max: float | None = None
+
+
+class AggregationResponse(BaseModel):
+    dimension: str
+    days: int | None = None
+    metric: str | None = None
+    total_rows: int
+    bucket_count: int | None = None
+    buckets: list[AggregationBucket]
+    backend: str | None = None
+    note: str | None = None
 
 
 class MetricScoreOut(BaseModel):
@@ -184,16 +218,24 @@ class SpeedTestResultOut(BaseModel):
     ipv4_ok: bool
     ipv6_ok: bool
     public_ip: str | None
+    client_hash: str | None = None
     isp_name: str | None
     as_info: str | None
+    internet_package: str | None = None
     detected_region: str | None = None
     detected_city: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     server_id: str | None = None
     server_label: str
+    server_operator: str | None = None
+    server_location: str | None = None
+    server_type: str | None = None
     selection_mode: str | None = None
     selection_score: float | None = None
+    test_date: str | None = None
+    day_of_week: int | None = None
+    hour_utc: int | None = None
     ping_min_ms: float | None = None
     ping_max_ms: float | None = None
     ping_median_ms: float | None = None

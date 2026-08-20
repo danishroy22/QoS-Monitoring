@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.schemas.internet import (
+    AggregationResponse,
     AssistantResponse,
     ConnectionIdentity,
     DashboardResponse,
@@ -25,6 +26,7 @@ from app.schemas.internet import (
     StatisticsResponse,
 )
 from app.services import internet_service
+from app.services.aggregation_service import AGGREGATION_DIMENSIONS
 from measurement.servers import DEFAULT_SERVER_ID
 
 router = APIRouter(tags=["internet-quality"])
@@ -157,6 +159,26 @@ def dashboard(db: Session = Depends(get_db)) -> DashboardResponse:
 @router.get("/statistics", response_model=StatisticsResponse)
 def statistics(db: Session = Depends(get_db)) -> StatisticsResponse:
     return internet_service.get_statistics(db)
+
+
+@router.get("/aggregations", response_model=AggregationResponse)
+def aggregations(
+    by: str = Query(
+        default="isp",
+        description=f"Group by: {', '.join(AGGREGATION_DIMENSIONS)}",
+    ),
+    days: int | None = Query(default=30, ge=1, le=3650),
+    metric: str | None = Query(
+        default=None,
+        description="Required/useful when by=metric (e.g. download_mbps)",
+    ),
+    db: Session = Depends(get_db),
+) -> AggregationResponse:
+    """Traceable speed_tests aggregations (Phase 3). Same dimensions as Supabase views."""
+    try:
+        return internet_service.get_aggregations(db, by=by, days=days, metric=metric)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/isp", response_model=IspResponse)
