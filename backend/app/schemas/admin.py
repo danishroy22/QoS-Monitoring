@@ -135,6 +135,39 @@ class HeatmapResponse(BaseModel):
     generated_at: datetime
 
 
+class MapLegendBand(BaseModel):
+    rating: str
+    colour: str
+    min_score: float
+    meaning: str
+
+
+class MapLegend(BaseModel):
+    metric: str
+    higher_is_better: bool
+    bands: list[MapLegendBand]
+    note: str | None = None
+
+
+class MapMeta(BaseModel):
+    metric: str
+    total_tests: int
+    districts_with_data: int
+    filters: dict
+    available_isps: list[str] = []
+    available_packages: list[str] = []
+    available_regions: list[str] = []
+    generated_at: datetime | str
+
+
+class QosMapResponse(BaseModel):
+    type: str = "FeatureCollection"
+    features: list[dict]
+    meta: MapMeta
+    legend: MapLegend
+    metrics: list[str]
+
+
 class IspAiCard(BaseModel):
     isp: str
     tests: int

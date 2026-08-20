@@ -2245,6 +2245,99 @@ input {
   letter-spacing: -0.03em;
 }
 
+.admin-map-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--space-2);
+}
+
+.admin-map-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.admin-map-meta {
+  margin: 0 0 var(--space-2);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.admin-map-shell {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #0b1220;
+}
+
+.admin-map {
+  width: 100%;
+  height: min(62vh, 560px);
+  z-index: 0;
+}
+
+.admin-map-tooltip {
+  background: rgba(15, 23, 42, 0.95) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.admin-map-legend {
+  margin-top: var(--space-2);
+}
+
+.admin-map-legend h4 {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.admin-map-legend > p {
+  margin: 0 0 var(--space-2);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.admin-map-legend-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-map-legend-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.admin-map-legend-item > span {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
+.admin-map-legend-item small {
+  display: block;
+  color: var(--muted);
+}
+
+.admin-map-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
 .admin-copy {
   margin: 0 0 var(--space-2);
   color: var(--ink-soft);
@@ -2275,6 +2368,8 @@ input {
   .admin-chart-grid,
   .admin-split,
   .admin-heat-grid,
+  .admin-map-filters,
+  .admin-map-legend-row,
   .admin-live-grid,
   .admin-profile-grid {
     grid-template-columns: 1fr 1fr;
@@ -2286,6 +2381,8 @@ input {
   .admin-chart-grid,
   .admin-split,
   .admin-heat-grid,
+  .admin-map-filters,
+  .admin-map-legend-row,
   .admin-live-grid,
   .admin-profile-grid,
   .admin-qos-row {

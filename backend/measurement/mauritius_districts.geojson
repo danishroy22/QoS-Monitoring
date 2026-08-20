@@ -1,0 +1,153 @@
+{
+  "type": "FeatureCollection",
+  "name": "mauritius_districts",
+  "crs": { "type": "name", "properties": { "name": "EPSG:4326" } },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "port-louis",
+        "name": "Port Louis",
+        "aliases": ["port louis", "port-louis"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [57.46, -20.13], [57.53, -20.13], [57.54, -20.18], [57.50, -20.20],
+          [57.45, -20.18], [57.46, -20.13]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "pamplemousses",
+        "name": "Pamplemousses",
+        "aliases": ["pamplemousses", "arsenal"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [57.50, -20.02], [57.62, -20.02], [57.62, -20.14], [57.52, -20.14],
+          [57.48, -20.10], [57.50, -20.02]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "riviere-du-rempart",
+        "name": "Rivière du Rempart",
+        "aliases": ["riviere du rempart", "rivière du rempart"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [57.62, -20.02], [57.72, -20.04], [57.75, -20.14], [57.62, -20.14],
+          [57.62, -20.02]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "flacq",
+        "name": "Flacq",
+        "aliases": ["flacq"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [57.62, -20.14], [57.78, -20.14], [57.80, -20.28], [57.68, -20.32],
+          [57.58, -20.26], [57.62, -20.14]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "grand-port",
+        "name": "Grand Port",
+        "aliases": ["grand port", "mahebourg", "mahbourg"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [57.58, -20.32], [57.78, -20.30], [57.80, -20.48], [57.62, -20.52],
+          [57.55, -20.42], [57.58, -20.32]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "savanne",
+        "name": "Savanne",
+        "aliases": ["savanne"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [57.45, -20.40], [57.58, -20.40], [57.62, -20.52], [57.48, -20.55],
+          [57.40, -20.48], [57.45, -20.40]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "plaines-wilhems",
+        "name": "Plaines Wilhems",
+        "aliases": [
+          "plaines wilhems",
+          "ebene",
+          "ébène",
+          "rose hill",
+          "rose-hill",
+          "floreal",
+          "floréal",
+          "curepipe",
+          "quatre bornes",
+          "beau bassin"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [57.45, -20.20], [57.55, -20.20], [57.58, -20.32], [57.52, -20.38],
+          [57.44, -20.34], [57.42, -20.26], [57.45, -20.20]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "moka",
+        "name": "Moka",
+        "aliases": ["moka"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [57.52, -20.18], [57.62, -20.18], [57.62, -20.28], [57.55, -20.30],
+          [57.50, -20.24], [57.52, -20.18]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "black-river",
+        "name": "Black River",
+        "aliases": ["black river", "la tour koenig", "latour", "flic en flac"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [57.34, -20.18], [57.46, -20.18], [57.45, -20.36], [57.36, -20.42],
+          [57.30, -20.30], [57.34, -20.18]
+        ]]
+      }
+    }
+  ]
+}

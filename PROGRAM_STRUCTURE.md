@@ -120,6 +120,8 @@ app/
 │   ├── internet_service.py        # Run/store tests, dashboard
 │   ├── monitoring_service.py      # Background interval tests
 │   ├── admin_service.py           # ISP aggregations, heatmap
+│   ├── map_service.py             # Mauritius GeoJSON QoS map (Phase 5)
+│   ├── package_service.py         # ISP packages + fulfilment (Phase 4)
 │   ├── admin_ai.py                # Admin ISP narratives
 │   ├── admin_report.py            # PDF report
 │   ├── ai_service.py              # Legacy NOC GenAI

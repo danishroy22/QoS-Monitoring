@@ -236,6 +236,16 @@ export function fetchAdminHeatmap(days = 90) {
   return request(`/admin/heatmap?days=${days}`);
 }
 
+export function fetchAdminQosMap(filters = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    params.set(key, String(value));
+  });
+  const qs = params.toString();
+  return request(`/admin/map${qs ? `?${qs}` : ""}`);
+}
+
 export function fetchAdminAi(days = 90) {
   return request(`/admin/ai/isp-analysis?days=${days}`);
 }

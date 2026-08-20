@@ -79,6 +79,14 @@ selection under Advanced Settings. When present:
 - Consumer list: `GET /packages`
 - Docs: `docs/phase4-packages.md`
 
+## Supervisor Phase 5 — Mauritius geographic QoS map
+
+Interactive district GeoJSON map in Admin → **QoS Map** with metric modes,
+ISP/package/region/date/time filters, and Excellent→Critical colour legend.
+
+- `GET /admin/map`
+- Docs: `docs/phase5-qos-map.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

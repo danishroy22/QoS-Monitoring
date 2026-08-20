@@ -21,6 +21,7 @@ import {
   fetchAdminBenchmarks,
   fetchAdminDashboard,
   fetchAdminHeatmap,
+  fetchAdminQosMap,
   fetchAdminHistory,
   fetchAdminIspAnalytics,
   fetchAdminPackages,
@@ -35,6 +36,7 @@ import PanelHeader from "../components/ui/PanelHeader";
 import SoftButton from "../components/ui/SoftButton";
 import { formatDateTime, formatNumber, ratingClass } from "../utils/format";
 import { ADMIN_PALETTE, AdminBarChart, AdminLineChart, metricDataset } from "./AdminCharts";
+import MauritiusQosMap, { formatMetric, metricLabel } from "./MauritiusQosMap";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -42,8 +44,29 @@ const TABS = [
   { id: "packages", label: "Packages" },
   { id: "benchmarks", label: "Benchmarks" },
   { id: "history", label: "History" },
-  { id: "heatmap", label: "Heatmap" },
+  { id: "map", label: "QoS Map" },
   { id: "ai", label: "AI Analysis" },
+];
+
+const MAP_METRICS = [
+  { id: "download", label: "Download" },
+  { id: "upload", label: "Upload" },
+  { id: "latency", label: "Latency" },
+  { id: "jitter", label: "Jitter" },
+  { id: "packet_loss", label: "Packet Loss" },
+  { id: "qos", label: "QoS Score" },
+  { id: "fulfilment", label: "Package Fulfilment" },
+];
+
+const DOW_OPTIONS = [
+  { value: "", label: "Any day" },
+  { value: "0", label: "Monday" },
+  { value: "1", label: "Tuesday" },
+  { value: "2", label: "Wednesday" },
+  { value: "3", label: "Thursday" },
+  { value: "4", label: "Friday" },
+  { value: "5", label: "Saturday" },
+  { value: "6", label: "Sunday" },
 ];
 
 const EMPTY_PACKAGE_FORM = {
@@ -104,6 +127,20 @@ export default function AdminPortal({ onBack }) {
   const [history, setHistory] = useState(null);
   const [granularity, setGranularity] = useState("daily");
   const [heatmap, setHeatmap] = useState(null);
+  const [mapData, setMapData] = useState(null);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapFilters, setMapFilters] = useState({
+    metric: "qos",
+    isp: "",
+    package: "",
+    region: "",
+    days: 30,
+    date_from: "",
+    date_to: "",
+    day_of_week: "",
+    hour_from: "",
+    hour_to: "",
+  });
   const [ai, setAi] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [profileDraft, setProfileDraft] = useState(null);
@@ -164,6 +201,29 @@ export default function AdminPortal({ onBack }) {
   useEffect(() => {
     if (tab === "packages") loadPackages();
   }, [tab, loadPackages]);
+
+  useEffect(() => {
+    if (tab !== "map") return undefined;
+    let cancelled = false;
+    setMapLoading(true);
+    const filters = { ...mapFilters };
+    if (filters.date_from || filters.date_to) {
+      delete filters.days;
+    }
+    fetchAdminQosMap(filters)
+      .then((data) => {
+        if (!cancelled) setMapData(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setMapLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, mapFilters]);
 
   useEffect(() => {
     if (tab !== "ai") return undefined;
@@ -373,7 +433,16 @@ export default function AdminPortal({ onBack }) {
               setGranularity={setGranularity}
             />
           )}
-          {tab === "heatmap" && <HeatmapSection key="heatmap" heatmap={heatmap} />}
+          {tab === "map" && (
+            <MapSection
+              key="map"
+              mapData={mapData}
+              loading={mapLoading}
+              filters={mapFilters}
+              setFilters={setMapFilters}
+              heatmap={heatmap}
+            />
+          )}
           {tab === "ai" && <AiSection key="ai" ai={ai} loading={aiLoading} />}
         </AnimatePresence>
       )}
@@ -929,35 +998,245 @@ function HistorySection({ history, granularity, setGranularity }) {
   );
 }
 
-function HeatmapSection({ heatmap }) {
-  const cells = heatmap?.cells || [];
-  const scores = cells.map((c) => c.avg_qos_score).filter((v) => v != null);
-  const max = scores.length ? Math.max(...scores) : 100;
+function MapSection({ mapData, loading, filters, setFilters, heatmap }) {
+  const meta = mapData?.meta || {};
+  const legend = mapData?.legend;
+  const features = mapData?.features || [];
+  const onFilter = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   return (
     <motion.div
+      className="admin-section"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
     >
-      <GlassCard className="iq-panel">
+      <GlassCard className="iq-panel" delay={0.04}>
         <PanelHeader
-          title="Mauritius performance heatmap"
-          subtitle="Aggregated QoS by test-server region"
+          title="Mauritius geographic QoS map"
+          subtitle="District averages with live filters — colour = Excellent→Critical scale"
           action={<MapPinned size={18} color="var(--muted)" />}
         />
-        <div className="admin-heat-grid">
-          {cells.map((cell) => {
-            const intensity = cell.avg_qos_score != null ? cell.avg_qos_score / max : 0;
-            return (
+
+        <div className="admin-map-modes" role="tablist" aria-label="Map metric">
+          {MAP_METRICS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`admin-tab ${filters.metric === item.id ? "is-active" : ""}`}
+              onClick={() => onFilter("metric", item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="admin-map-filters">
+          <label className="mon-field">
+            <span>ISP</span>
+            <select value={filters.isp} onChange={(e) => onFilter("isp", e.target.value)}>
+              <option value="">All ISPs</option>
+              {(meta.available_isps || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Package</span>
+            <select
+              value={filters.package}
+              onChange={(e) => onFilter("package", e.target.value)}
+            >
+              <option value="">All packages</option>
+              {(meta.available_packages || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Region</span>
+            <select
+              value={filters.region}
+              onChange={(e) => onFilter("region", e.target.value)}
+            >
+              <option value="">All districts</option>
+              {(meta.available_regions || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Date window</span>
+            <select
+              value={filters.days}
+              onChange={(e) =>
+                onFilter("days", Number(e.target.value))
+              }
+              disabled={Boolean(filters.date_from || filters.date_to)}
+            >
+              {DAY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>From date</span>
+            <input
+              type="date"
+              value={filters.date_from}
+              onChange={(e) => onFilter("date_from", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>To date</span>
+            <input
+              type="date"
+              value={filters.date_to}
+              onChange={(e) => onFilter("date_to", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>Day of week</span>
+            <select
+              value={filters.day_of_week}
+              onChange={(e) => onFilter("day_of_week", e.target.value)}
+            >
+              {DOW_OPTIONS.map((opt) => (
+                <option key={opt.label} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Hour from (UTC)</span>
+            <input
+              type="number"
+              min="0"
+              max="23"
+              placeholder="e.g. 18"
+              value={filters.hour_from}
+              onChange={(e) => onFilter("hour_from", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>Hour to (UTC)</span>
+            <input
+              type="number"
+              min="0"
+              max="23"
+              placeholder="e.g. 21"
+              value={filters.hour_to}
+              onChange={(e) => onFilter("hour_to", e.target.value)}
+            />
+          </label>
+        </div>
+
+        <p className="admin-map-meta">
+          Showing <strong>{metricLabel(filters.metric)}</strong> ·{" "}
+          {meta.total_tests ?? 0} tests · {meta.districts_with_data ?? 0} districts with data
+          {filters.hour_from !== "" || filters.hour_to !== ""
+            ? ` · time ${filters.hour_from || "00"}:00–${filters.hour_to || "23"}:00 UTC`
+            : ""}
+        </p>
+
+        {loading ? (
+          <SkeletonCards count={1} />
+        ) : (
+          <MauritiusQosMap geojson={mapData} metric={filters.metric} />
+        )}
+
+        {legend ? (
+          <div className="admin-map-legend">
+            <h4>Colour scale</h4>
+            <p>{legend.note}</p>
+            <div className="admin-map-legend-row">
+              {(legend.bands || []).map((band) => (
+                <div key={band.rating} className="admin-map-legend-item">
+                  <span style={{ background: band.colour }} aria-hidden="true" />
+                  <div>
+                    <strong className={ratingClass(band.rating)}>{band.rating}</strong>
+                    <small>{band.meaning}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </GlassCard>
+
+      <GlassCard className="iq-panel" delay={0.08}>
+        <PanelHeader title="District summary" subtitle="All metrics for the active filter set" />
+        {features.length === 0 ? (
+          <EmptyHint>No map features returned.</EmptyHint>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>District</th>
+                  <th>Tests</th>
+                  <th>Download</th>
+                  <th>Upload</th>
+                  <th>Ping</th>
+                  <th>Jitter</th>
+                  <th>Loss</th>
+                  <th>QoS</th>
+                  <th>Fulfilment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {features.map((feature) => {
+                  const p = feature.properties || {};
+                  return (
+                    <tr key={p.id || p.name}>
+                      <td>
+                        <span
+                          className="admin-map-swatch"
+                          style={{ background: p.colour || "#334155" }}
+                        />
+                        {p.name}
+                      </td>
+                      <td>{p.tests || 0}</td>
+                      <td>{formatMetric(p.avg_download_mbps, "download")}</td>
+                      <td>{formatMetric(p.avg_upload_mbps, "upload")}</td>
+                      <td>{formatMetric(p.avg_ping_ms, "latency")}</td>
+                      <td>{formatMetric(p.avg_jitter_ms, "jitter")}</td>
+                      <td>{formatMetric(p.avg_packet_loss_pct, "packet_loss")}</td>
+                      <td className={ratingClass(p.rating)}>
+                        {formatMetric(p.avg_qos_score, "qos")}
+                      </td>
+                      <td>{formatMetric(p.avg_fulfilment_pct, "fulfilment")}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </GlassCard>
+
+      {heatmap?.cells?.length ? (
+        <GlassCard className="iq-panel" delay={0.1}>
+          <PanelHeader
+            title="Locality cards (legacy)"
+            subtitle="Server-label heatmap retained for report continuity"
+          />
+          <div className="admin-heat-grid">
+            {heatmap.cells.map((cell) => (
               <article
                 key={cell.region}
                 className={`admin-heat-cell ${cell.tests ? "has-data" : "is-empty"}`}
-                style={{
-                  background: cell.tests
-                    ? `linear-gradient(180deg, rgba(6, 182, 212, ${0.12 + intensity * 0.35}), rgba(15, 23, 42, 0.55))`
-                    : undefined,
-                }}
               >
                 <h3>{cell.region}</h3>
                 <p className={`admin-heat-score ${ratingClass(cell.rating)}`}>
@@ -968,10 +1247,10 @@ function HeatmapSection({ heatmap }) {
                   {formatNumber(cell.avg_ping_ms, 0)} ms
                 </p>
               </article>
-            );
-          })}
-        </div>
-      </GlassCard>
+            ))}
+          </div>
+        </GlassCard>
+      ) : null}
     </motion.div>
   );
 }
