@@ -121,6 +121,7 @@ app/
 │   ├── monitoring_service.py      # Background interval tests
 │   ├── admin_service.py           # ISP aggregations, heatmap
 │   ├── map_service.py             # Mauritius GeoJSON QoS map (Phase 5)
+│   ├── comparison_service.py      # Fair ISP comparison (Phase 6)
 │   ├── package_service.py         # ISP packages + fulfilment (Phase 4)
 │   ├── admin_ai.py                # Admin ISP narratives
 │   ├── admin_report.py            # PDF report

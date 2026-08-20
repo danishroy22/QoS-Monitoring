@@ -45,6 +45,7 @@ Open **http://127.0.0.1:5173** and click **GO**.
 | GET | `/packages` | Active ISP packages (admin-configured) |
 | GET | `/admin/packages` | Manage ISP packages (CRUD) |
 | GET | `/admin/map` | Mauritius district QoS GeoJSON map |
+| GET | `/admin/comparison` | Fair ISP comparison (stats + filters) |
 | GET | `/admin/dashboard` | Administrator KPIs and ISP leaderboard |
 | GET | `/admin/report` | Administrator QoS PDF report |
 
@@ -79,6 +80,7 @@ Full module map: **[PROGRAM_STRUCTURE.md](PROGRAM_STRUCTURE.md)**
 - `docs/phase3-supabase.md` — Phase 3 traceable DB on Supabase
 - `docs/phase4-packages.md` — Phase 4 ISP packages + fulfilment %
 - `docs/phase5-qos-map.md` — Phase 5 Mauritius QoS map
+- `docs/phase6-isp-comparison.md` — Phase 6 fair ISP comparison
 - `backend/simulator/` — legacy synthetic NOC generator (still available under `/api`)
 
 ## Optional Generative AI

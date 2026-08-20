@@ -21,6 +21,7 @@ from app.schemas.admin import (
     HeatmapResponse,
     HistoryAnalyticsResponse,
     IspAnalyticsResponse,
+    IspComparisonResponse,
     QosMapResponse,
 )
 from app.schemas.packages import (
@@ -29,7 +30,7 @@ from app.schemas.packages import (
     InternetPackageOut,
     InternetPackageUpdate,
 )
-from app.services import admin_ai, admin_report, admin_service, package_service
+from app.services import admin_ai, admin_report, admin_service, comparison_service, package_service
 from app.services import map_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -51,6 +52,43 @@ def admin_isp_analytics(
 ) -> IspAnalyticsResponse:
     """Per-ISP download, upload, ping, jitter, loss, and QoS averages."""
     return admin_service.get_isp_analytics(db, days=days)
+
+
+@router.get("/comparison", response_model=IspComparisonResponse)
+def admin_isp_comparison(
+    mode: str = Query(
+        default="isp_vs_isp",
+        description="isp_vs_isp | isp_vs_benchmark | isp_vs_ideal",
+    ),
+    isp_a: str | None = Query(default=None),
+    isp_b: str | None = Query(default=None),
+    package: str | None = Query(default=None),
+    region: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    days: int | None = Query(default=90, ge=1, le=3650),
+    hour_from: int | None = Query(default=None, ge=0, le=23),
+    hour_to: int | None = Query(default=None, ge=0, le=23),
+    db: Session = Depends(get_db),
+) -> IspComparisonResponse:
+    """Fair ISP comparison with avg/median/min/max/stdev and filters (Phase 6)."""
+    try:
+        payload = comparison_service.compare_isps(
+            db,
+            mode=mode,  # type: ignore[arg-type]
+            isp_a=isp_a,
+            isp_b=isp_b,
+            package=package,
+            region=region,
+            date_from=date_from,
+            date_to=date_to,
+            days=None if (date_from or date_to) else days,
+            hour_from=hour_from,
+            hour_to=hour_to,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return IspComparisonResponse.model_validate(payload)
 
 
 @router.get("/packages", response_model=InternetPackageListResponse)

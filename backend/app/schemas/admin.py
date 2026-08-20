@@ -168,6 +168,63 @@ class QosMapResponse(BaseModel):
     metrics: list[str]
 
 
+class MetricStats(BaseModel):
+    key: str
+    label: str
+    unit: str
+    higher_is_better: bool
+    count: int = 0
+    avg: float | None = None
+    median: float | None = None
+    min: float | None = None
+    max: float | None = None
+    stdev: float | None = None
+    target: float | None = None
+    gap: float | None = None
+    meets_target: bool | None = None
+    delta_pct: float | None = None
+
+
+class IspComparisonRow(BaseModel):
+    isp: str
+    tests: int
+    qos_score: float | None = None
+    qos_rating: str | None = None
+    fulfilment_pct: float | None = None
+    metrics: list[MetricStats]
+
+
+class PairwiseDelta(BaseModel):
+    key: str
+    label: str
+    unit: str
+    isp_a_avg: float | None = None
+    isp_b_avg: float | None = None
+    delta: float | None = None
+    better: str | None = None
+
+
+class PairwiseComparison(BaseModel):
+    isp_a: str
+    isp_b: str
+    deltas: list[PairwiseDelta]
+    note: str | None = None
+
+
+class IspComparisonResponse(BaseModel):
+    mode: Literal["isp_vs_isp", "isp_vs_benchmark", "isp_vs_ideal"]
+    profile: BenchmarkProfile | None = None
+    isps: list[IspComparisonRow]
+    pairwise: PairwiseComparison | None = None
+    filters: dict
+    available_isps: list[str] = []
+    available_packages: list[str] = []
+    available_regions: list[str] = []
+    total_tests: int = 0
+    ranking_note: str
+    generated_at: datetime | str
+
+
 class IspAiCard(BaseModel):
     isp: str
     tests: int

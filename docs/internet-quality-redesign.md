@@ -87,6 +87,14 @@ ISP/package/region/date/time filters, and Excellent→Critical colour legend.
 - `GET /admin/map`
 - Docs: `docs/phase5-qos-map.md`
 
+## Supervisor Phase 6 — Fair ISP comparison
+
+Compare ISPs with avg/median/min/max/stdev and n=, filtered by package/region/
+time. Ordered by QoS score — not raw download speed.
+
+- `GET /admin/comparison`
+- Docs: `docs/phase6-isp-comparison.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

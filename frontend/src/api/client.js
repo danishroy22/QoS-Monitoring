@@ -216,6 +216,16 @@ export function fetchAdminIspAnalytics(days = 90) {
   return request(`/admin/isp-analytics?days=${days}`);
 }
 
+export function fetchAdminComparison(filters = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    params.set(key, String(value));
+  });
+  const qs = params.toString();
+  return request(`/admin/comparison${qs ? `?${qs}` : ""}`);
+}
+
 export function fetchAdminBenchmarks(days = 90) {
   return request(`/admin/benchmarks?days=${days}`);
 }

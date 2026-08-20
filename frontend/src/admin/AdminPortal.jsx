@@ -8,6 +8,7 @@ import {
   MapPinned,
   Radio,
   RefreshCw,
+  Scale,
   Shield,
   Sparkles,
   Trophy,
@@ -19,6 +20,7 @@ import {
   downloadAdminReport,
   fetchAdminAi,
   fetchAdminBenchmarks,
+  fetchAdminComparison,
   fetchAdminDashboard,
   fetchAdminHeatmap,
   fetchAdminQosMap,
@@ -41,6 +43,7 @@ import MauritiusQosMap, { formatMetric, metricLabel } from "./MauritiusQosMap";
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "isp", label: "ISP Analytics" },
+  { id: "compare", label: "Compare" },
   { id: "packages", label: "Packages" },
   { id: "benchmarks", label: "Benchmarks" },
   { id: "history", label: "History" },
@@ -141,6 +144,20 @@ export default function AdminPortal({ onBack }) {
     hour_from: "",
     hour_to: "",
   });
+  const [comparison, setComparison] = useState(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [compareFilters, setCompareFilters] = useState({
+    mode: "isp_vs_isp",
+    isp_a: "",
+    isp_b: "",
+    package: "",
+    region: "",
+    days: 90,
+    date_from: "",
+    date_to: "",
+    hour_from: "",
+    hour_to: "",
+  });
   const [ai, setAi] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [profileDraft, setProfileDraft] = useState(null);
@@ -224,6 +241,29 @@ export default function AdminPortal({ onBack }) {
       cancelled = true;
     };
   }, [tab, mapFilters]);
+
+  useEffect(() => {
+    if (tab !== "compare") return undefined;
+    let cancelled = false;
+    setComparisonLoading(true);
+    const filters = { ...compareFilters };
+    if (filters.date_from || filters.date_to) {
+      delete filters.days;
+    }
+    fetchAdminComparison(filters)
+      .then((data) => {
+        if (!cancelled) setComparison(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setComparisonLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, compareFilters]);
 
   useEffect(() => {
     if (tab !== "ai") return undefined;
@@ -397,6 +437,15 @@ export default function AdminPortal({ onBack }) {
           )}
           {tab === "isp" && (
             <IspSection key="isp" isps={isps} labels={labels} />
+          )}
+          {tab === "compare" && (
+            <CompareSection
+              key="compare"
+              comparison={comparison}
+              loading={comparisonLoading}
+              filters={compareFilters}
+              setFilters={setCompareFilters}
+            />
           )}
           {tab === "packages" && (
             <PackagesSection
@@ -756,6 +805,256 @@ function PackagesSection({
           </div>
         )}
       </GlassCard>
+    </motion.div>
+  );
+}
+
+function CompareSection({ comparison, loading, filters, setFilters }) {
+  const onFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+  const isps = comparison?.isps || [];
+  const available = comparison?.available_isps || [];
+  const showTargets = filters.mode !== "isp_vs_isp";
+  const pairwise = comparison?.pairwise;
+
+  return (
+    <motion.div
+      className="admin-section"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+    >
+      <GlassCard className="iq-panel" delay={0.04}>
+        <PanelHeader
+          title="Fair ISP comparison"
+          subtitle="Avg · median · min · max · stdev · n= — ordered by QoS, not raw speed"
+          action={<Scale size={18} color="var(--muted)" />}
+        />
+
+        <div className="admin-map-modes" role="tablist" aria-label="Comparison mode">
+          {[
+            { id: "isp_vs_isp", label: "ISP vs ISP" },
+            { id: "isp_vs_benchmark", label: "ISP vs Benchmark" },
+            { id: "isp_vs_ideal", label: "ISP vs Ideal Profile" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`admin-tab ${filters.mode === item.id ? "is-active" : ""}`}
+              onClick={() => onFilter("mode", item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="admin-map-filters">
+          {filters.mode === "isp_vs_isp" ? (
+            <>
+              <label className="mon-field">
+                <span>ISP A</span>
+                <select value={filters.isp_a} onChange={(e) => onFilter("isp_a", e.target.value)}>
+                  <option value="">All (table view)</option>
+                  {available.map((name) => (
+                    <option key={`a-${name}`} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="mon-field">
+                <span>ISP B</span>
+                <select value={filters.isp_b} onChange={(e) => onFilter("isp_b", e.target.value)}>
+                  <option value="">—</option>
+                  {available.map((name) => (
+                    <option key={`b-${name}`} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+          <label className="mon-field">
+            <span>Package</span>
+            <select value={filters.package} onChange={(e) => onFilter("package", e.target.value)}>
+              <option value="">All packages</option>
+              {(comparison?.available_packages || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Region</span>
+            <select value={filters.region} onChange={(e) => onFilter("region", e.target.value)}>
+              <option value="">All regions</option>
+              {(comparison?.available_regions || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Date window</span>
+            <select
+              value={filters.days}
+              disabled={Boolean(filters.date_from || filters.date_to)}
+              onChange={(e) => onFilter("days", Number(e.target.value))}
+            >
+              {DAY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>From date</span>
+            <input
+              type="date"
+              value={filters.date_from}
+              onChange={(e) => onFilter("date_from", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>To date</span>
+            <input
+              type="date"
+              value={filters.date_to}
+              onChange={(e) => onFilter("date_to", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>Hour from (UTC)</span>
+            <input
+              type="number"
+              min="0"
+              max="23"
+              value={filters.hour_from}
+              placeholder="e.g. 18"
+              onChange={(e) => onFilter("hour_from", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>Hour to (UTC)</span>
+            <input
+              type="number"
+              min="0"
+              max="23"
+              value={filters.hour_to}
+              placeholder="e.g. 21"
+              onChange={(e) => onFilter("hour_to", e.target.value)}
+            />
+          </label>
+        </div>
+
+        <p className="admin-map-meta">{comparison?.ranking_note}</p>
+        <p className="admin-map-meta">
+          {comparison?.total_tests ?? 0} tests in filter · package/region filters avoid unfair
+          tier or geography mixes
+        </p>
+      </GlassCard>
+
+      {loading ? (
+        <SkeletonCards count={2} />
+      ) : (
+        <>
+          {pairwise ? (
+            <GlassCard className="iq-panel" delay={0.06}>
+              <PanelHeader
+                title={`${pairwise.isp_a} vs ${pairwise.isp_b}`}
+                subtitle={pairwise.note}
+              />
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      <th>{pairwise.isp_a}</th>
+                      <th>{pairwise.isp_b}</th>
+                      <th>Δ (A−B)</th>
+                      <th>Better</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pairwise.deltas.map((row) => (
+                      <tr key={row.key}>
+                        <td>
+                          {row.label} <small>({row.unit})</small>
+                        </td>
+                        <td>{formatNumber(row.isp_a_avg, 2)}</td>
+                        <td>{formatNumber(row.isp_b_avg, 2)}</td>
+                        <td>{formatNumber(row.delta, 2)}</td>
+                        <td>{row.better || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </GlassCard>
+          ) : null}
+
+          {isps.length === 0 ? (
+            <GlassCard className="iq-panel">
+              <EmptyHint>No ISP samples match these filters.</EmptyHint>
+            </GlassCard>
+          ) : (
+            isps.map((ispRow, index) => (
+              <GlassCard key={ispRow.isp} className="iq-panel" delay={0.05 + index * 0.02}>
+                <PanelHeader
+                  title={ispRow.isp}
+                  subtitle={`${ispRow.tests} tests · QoS ${formatNumber(ispRow.qos_score, 0) ?? "—"} · Fulfilment ${formatNumber(ispRow.fulfilment_pct, 1) ?? "—"}%`}
+                  action={
+                    <span className={`iq-pill ${ratingClass(ispRow.qos_rating)}`}>
+                      {ispRow.qos_rating || "n/a"}
+                    </span>
+                  }
+                />
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Metric</th>
+                        <th>n</th>
+                        <th>Avg</th>
+                        <th>Median</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                        <th>Stdev</th>
+                        {showTargets ? <th>Target</th> : null}
+                        {showTargets ? <th>Meets?</th> : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ispRow.metrics.map((m) => (
+                        <tr key={m.key}>
+                          <td>
+                            {m.label} <small>({m.unit})</small>
+                          </td>
+                          <td>{m.count}</td>
+                          <td>{formatNumber(m.avg, 2)}</td>
+                          <td>{formatNumber(m.median, 2)}</td>
+                          <td>{formatNumber(m.min, 2)}</td>
+                          <td>{formatNumber(m.max, 2)}</td>
+                          <td>{formatNumber(m.stdev, 2)}</td>
+                          {showTargets ? <td>{formatNumber(m.target, 2)}</td> : null}
+                          {showTargets ? (
+                            <td>
+                              {m.meets_target == null ? "—" : m.meets_target ? "Yes" : "No"}
+                            </td>
+                          ) : null}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </GlassCard>
+            ))
+          )}
+        </>
+      )}
     </motion.div>
   );
 }
