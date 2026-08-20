@@ -95,6 +95,18 @@ time. Ordered by QoS score — not raw download speed.
 - `GET /admin/comparison`
 - Docs: `docs/phase6-isp-comparison.md`
 
+## Supervisor Phase 7 — Ideal QoS / Benchmark profiles
+
+Multiple configurable use-case profiles (General Broadband, Gaming, Video
+Conferencing, Streaming, VoIP, Enterprise). Each metric has source, rationale,
+unit, threshold, and description. Thresholds are **not** universal standards.
+
+- `GET/PUT /admin/benchmarks`
+- `GET /admin/benchmark-profiles`
+- `PUT /admin/benchmark-profiles/active`
+- `PUT /admin/benchmark-profiles/{id}`
+- Docs: `docs/phase7-benchmark-profiles.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

@@ -1,0 +1,342 @@
+{
+  "active_profile_id": "general-broadband",
+  "disclaimer": "These profiles are configurable dissertation comparison anchors. Thresholds are experimental starting points — not universal industry standards.",
+  "profiles": [
+    {
+      "id": "general-broadband",
+      "name": "General Broadband",
+      "description": "Everyday residential broadband comparison profile for Mauritius-oriented QoS studies.",
+      "metrics": {
+        "download_mbps": {
+          "threshold": 100,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Anchors mid-tier advertised FTTH download for compliance scoring, not a claimed national minimum.",
+          "description": "Target mean download throughput for this profile."
+        },
+        "upload_mbps": {
+          "threshold": 20,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Asymmetric residential plans often advertise much lower upload; 20 Mbps is a local comparison anchor.",
+          "description": "Target mean upload throughput for this profile."
+        },
+        "ping_ms": {
+          "threshold": 20,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Interactive browsing and general responsiveness typically feel good under ~20 ms RTT on island paths.",
+          "description": "Maximum mean ICMP/TCP latency considered compliant."
+        },
+        "jitter_ms": {
+          "threshold": 5,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Low delay variation supports stable everyday interactive use.",
+          "description": "Maximum mean jitter considered compliant."
+        },
+        "packet_loss_pct": {
+          "threshold": 0.5,
+          "unit": "%",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Loss above ~0.5% often degrades TCP and real-time apps; used as a soft compliance gate.",
+          "description": "Maximum mean packet loss considered compliant."
+        },
+        "dns_lookup_ms": {
+          "threshold": 50,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Page start and app connect times suffer when DNS exceeds tens of milliseconds.",
+          "description": "Maximum mean DNS lookup time considered compliant."
+        },
+        "overall_score": {
+          "threshold": 85,
+          "unit": "/100",
+          "source": "SmartQoS QoS Analysis Engine bands",
+          "rationale": "Aligns with the existing Excellent/Good boundary used elsewhere in the platform.",
+          "description": "Minimum mean overall QoS score considered compliant."
+        }
+      }
+    },
+    {
+      "id": "gaming",
+      "name": "Gaming",
+      "description": "Latency-sensitive interactive gaming comparison profile.",
+      "metrics": {
+        "download_mbps": {
+          "threshold": 25,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Modern online games rarely need very high sustained throughput; responsiveness dominates.",
+          "description": "Target mean download for gaming sessions."
+        },
+        "upload_mbps": {
+          "threshold": 5,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Upload mainly carries player state; modest capacity is usually enough.",
+          "description": "Target mean upload for gaming sessions."
+        },
+        "ping_ms": {
+          "threshold": 40,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Competitive play degrades as RTT rises; 40 ms is a practical island-path stretch target, not an esports standard.",
+          "description": "Maximum mean latency for gaming compliance."
+        },
+        "jitter_ms": {
+          "threshold": 10,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Jitter causes rubber-banding even when average latency looks acceptable.",
+          "description": "Maximum mean jitter for gaming compliance."
+        },
+        "packet_loss_pct": {
+          "threshold": 0.5,
+          "unit": "%",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Loss forces retransmits and visible hitches in real-time games.",
+          "description": "Maximum mean packet loss for gaming compliance."
+        },
+        "dns_lookup_ms": {
+          "threshold": 40,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Matchmaking and CDN redirects still depend on timely DNS.",
+          "description": "Maximum mean DNS lookup for gaming compliance."
+        },
+        "overall_score": {
+          "threshold": 80,
+          "unit": "/100",
+          "source": "SmartQoS QoS Analysis Engine bands",
+          "rationale": "Slightly lower composite gate than general broadband because gaming weights latency harder in practice.",
+          "description": "Minimum mean overall QoS score for gaming compliance."
+        }
+      }
+    },
+    {
+      "id": "video-conferencing",
+      "name": "Video Conferencing",
+      "description": "Two-way video meeting comparison profile (Zoom/Teams-class use).",
+      "metrics": {
+        "download_mbps": {
+          "threshold": 10,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "HD receive streams are modest; uplink and stability matter more than peak download.",
+          "description": "Target mean download for conferencing."
+        },
+        "upload_mbps": {
+          "threshold": 5,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Outbound camera streams need sustained uplink more than download.",
+          "description": "Target mean upload for conferencing."
+        },
+        "ping_ms": {
+          "threshold": 50,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Conversational turn-taking degrades as delay rises.",
+          "description": "Maximum mean latency for conferencing."
+        },
+        "jitter_ms": {
+          "threshold": 15,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Jitter creates audio artefacts and frozen frames in RTC stacks.",
+          "description": "Maximum mean jitter for conferencing."
+        },
+        "packet_loss_pct": {
+          "threshold": 1.0,
+          "unit": "%",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "RTC can conceal small loss; above ~1% quality drops quickly.",
+          "description": "Maximum mean packet loss for conferencing."
+        },
+        "dns_lookup_ms": {
+          "threshold": 50,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Meeting join still depends on resolving service endpoints.",
+          "description": "Maximum mean DNS lookup for conferencing."
+        },
+        "overall_score": {
+          "threshold": 80,
+          "unit": "/100",
+          "source": "SmartQoS QoS Analysis Engine bands",
+          "rationale": "Composite gate for meeting-ready connections under this profile.",
+          "description": "Minimum mean overall QoS score for conferencing."
+        }
+      }
+    },
+    {
+      "id": "streaming",
+      "name": "Streaming",
+      "description": "One-way video streaming / IPTV-style consumption profile.",
+      "metrics": {
+        "download_mbps": {
+          "threshold": 25,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Rough HD/4K adaptive-stream headroom; not a codec-specific bitrate claim.",
+          "description": "Target mean download for streaming."
+        },
+        "upload_mbps": {
+          "threshold": 3,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Playback is download-dominated; upload remains a light control-plane need.",
+          "description": "Target mean upload for streaming."
+        },
+        "ping_ms": {
+          "threshold": 80,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Streaming tolerates higher RTT than interactive apps if throughput is stable.",
+          "description": "Maximum mean latency for streaming."
+        },
+        "jitter_ms": {
+          "threshold": 20,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Buffers absorb some variation; large jitter still causes rebuffering.",
+          "description": "Maximum mean jitter for streaming."
+        },
+        "packet_loss_pct": {
+          "threshold": 1.0,
+          "unit": "%",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Loss forces bitrate drops and stalls in ABR players.",
+          "description": "Maximum mean packet loss for streaming."
+        },
+        "dns_lookup_ms": {
+          "threshold": 60,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "CDN hostname resolution affects start-up time more than mid-stream quality.",
+          "description": "Maximum mean DNS lookup for streaming."
+        },
+        "overall_score": {
+          "threshold": 75,
+          "unit": "/100",
+          "source": "SmartQoS QoS Analysis Engine bands",
+          "rationale": "Composite gate weighted toward sustained download success.",
+          "description": "Minimum mean overall QoS score for streaming."
+        }
+      }
+    },
+    {
+      "id": "voip",
+      "name": "VoIP",
+      "description": "Voice-over-IP / telephony-oriented comparison profile.",
+      "metrics": {
+        "download_mbps": {
+          "threshold": 1,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Codec bitrates are small; voice quality is delay/loss dominated.",
+          "description": "Target mean download for VoIP."
+        },
+        "upload_mbps": {
+          "threshold": 1,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Symmetric voice streams need only modest capacity each way.",
+          "description": "Target mean upload for VoIP."
+        },
+        "ping_ms": {
+          "threshold": 100,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "ITU-T G.114 one-way delay guidance is often cited near 150 ms; 100 ms RTT is a conservative round-trip stretch target for this profile, not a regulatory limit.",
+          "description": "Maximum mean latency for VoIP."
+        },
+        "jitter_ms": {
+          "threshold": 20,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Jitter buffers hide some variation; beyond ~20–30 ms voice quality suffers.",
+          "description": "Maximum mean jitter for VoIP."
+        },
+        "packet_loss_pct": {
+          "threshold": 1.0,
+          "unit": "%",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Even small loss rates create audible artefacts in VoIP codecs.",
+          "description": "Maximum mean packet loss for VoIP."
+        },
+        "dns_lookup_ms": {
+          "threshold": 50,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Registrar / SBC lookups affect call setup more than media quality.",
+          "description": "Maximum mean DNS lookup for VoIP."
+        },
+        "overall_score": {
+          "threshold": 80,
+          "unit": "/100",
+          "source": "SmartQoS QoS Analysis Engine bands",
+          "rationale": "Composite gate emphasising stability over peak throughput.",
+          "description": "Minimum mean overall QoS score for VoIP."
+        }
+      }
+    },
+    {
+      "id": "enterprise",
+      "name": "Enterprise",
+      "description": "Stricter business-oriented broadband comparison profile.",
+      "metrics": {
+        "download_mbps": {
+          "threshold": 200,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Higher sustained download for multi-user sites and cloud sync — still a local target, not an SLA.",
+          "description": "Target mean download for enterprise use."
+        },
+        "upload_mbps": {
+          "threshold": 50,
+          "unit": "Mbps",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Business uploads (backups, CCTV, SaaS) need more uplink than residential plans.",
+          "description": "Target mean upload for enterprise use."
+        },
+        "ping_ms": {
+          "threshold": 20,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Interactive remote desktops and APIs benefit from low RTT.",
+          "description": "Maximum mean latency for enterprise use."
+        },
+        "jitter_ms": {
+          "threshold": 5,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Stable delay supports voice, video, and transactional apps on the same link.",
+          "description": "Maximum mean jitter for enterprise use."
+        },
+        "packet_loss_pct": {
+          "threshold": 0.2,
+          "unit": "%",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Stricter loss gate than residential profiles for business criticality.",
+          "description": "Maximum mean packet loss for enterprise use."
+        },
+        "dns_lookup_ms": {
+          "threshold": 30,
+          "unit": "ms",
+          "source": "Configurable dissertation profile (SmartQoS Phase 7)",
+          "rationale": "Enterprise SaaS login and directory lookups are latency-sensitive at the edge.",
+          "description": "Maximum mean DNS lookup for enterprise use."
+        },
+        "overall_score": {
+          "threshold": 90,
+          "unit": "/100",
+          "source": "SmartQoS QoS Analysis Engine bands",
+          "rationale": "Aligns with the Excellent rating band for stricter business comparisons.",
+          "description": "Minimum mean overall QoS score for enterprise use."
+        }
+      }
+    }
+  ]
+}

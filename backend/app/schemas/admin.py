@@ -70,6 +70,8 @@ class IspAnalyticsResponse(BaseModel):
 
 
 class BenchmarkProfile(BaseModel):
+    """Flat threshold view used by ranking / comparison engines."""
+
     name: str = "Ideal Broadband Profile"
     description: str | None = None
     download_mbps: float = Field(default=100, ge=1)
@@ -78,6 +80,28 @@ class BenchmarkProfile(BaseModel):
     jitter_ms: float = Field(default=5, ge=0.1)
     packet_loss_pct: float = Field(default=0.5, ge=0)
     overall_score: int = Field(default=85, ge=1, le=100)
+
+
+class BenchmarkMetricThreshold(BaseModel):
+    threshold: float
+    unit: str
+    source: str
+    rationale: str
+    description: str
+
+
+class BenchmarkProfileDetail(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    metrics: dict[str, BenchmarkMetricThreshold]
+
+
+class BenchmarkProfilesResponse(BaseModel):
+    active_profile_id: str
+    disclaimer: str
+    profiles: list[BenchmarkProfileDetail]
+    active: BenchmarkProfileDetail | None = None
 
 
 class MetricCompliance(BaseModel):
@@ -100,6 +124,10 @@ class IspBenchmarkRow(BaseModel):
 
 class BenchmarkResponse(BaseModel):
     profile: BenchmarkProfile
+    profile_detail: BenchmarkProfileDetail | None = None
+    active_profile_id: str | None = None
+    disclaimer: str | None = None
+    profiles: list[BenchmarkProfileDetail] = []
     rankings: list[IspBenchmarkRow]
     generated_at: datetime
 

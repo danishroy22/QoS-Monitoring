@@ -226,8 +226,10 @@ export function fetchAdminComparison(filters = {}) {
   return request(`/admin/comparison${qs ? `?${qs}` : ""}`);
 }
 
-export function fetchAdminBenchmarks(days = 90) {
-  return request(`/admin/benchmarks?days=${days}`);
+export function fetchAdminBenchmarks(days = 90, profileId = null) {
+  const params = new URLSearchParams({ days: String(days) });
+  if (profileId) params.set("profile_id", profileId);
+  return request(`/admin/benchmarks?${params}`);
 }
 
 export function updateAdminBenchmarks(profile, days = 90) {
@@ -235,6 +237,24 @@ export function updateAdminBenchmarks(profile, days = 90) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(profile),
+  });
+}
+
+export function fetchAdminBenchmarkProfiles() {
+  return request("/admin/benchmark-profiles");
+}
+
+export function setActiveAdminBenchmarkProfile(profileId) {
+  return request(`/admin/benchmark-profiles/active?profile_id=${encodeURIComponent(profileId)}`, {
+    method: "PUT",
+  });
+}
+
+export function updateAdminBenchmarkProfile(profileId, payload) {
+  return request(`/admin/benchmark-profiles/${encodeURIComponent(profileId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 }
 

@@ -17,6 +17,8 @@ from app.schemas.admin import (
     AdminAiResponse,
     AdminDashboardResponse,
     BenchmarkProfile,
+    BenchmarkProfileDetail,
+    BenchmarkProfilesResponse,
     BenchmarkResponse,
     HeatmapResponse,
     HistoryAnalyticsResponse,
@@ -30,7 +32,14 @@ from app.schemas.packages import (
     InternetPackageOut,
     InternetPackageUpdate,
 )
-from app.services import admin_ai, admin_report, admin_service, comparison_service, package_service
+from app.services import (
+    admin_ai,
+    admin_report,
+    admin_service,
+    benchmark_service,
+    comparison_service,
+    package_service,
+)
 from app.services import map_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -143,10 +152,11 @@ def admin_deactivate_package(
 @router.get("/benchmarks", response_model=BenchmarkResponse)
 def admin_benchmarks(
     days: int | None = Query(default=90, ge=1, le=3650),
+    profile_id: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> BenchmarkResponse:
-    """Compare every ISP against the Ideal Broadband Profile."""
-    return admin_service.get_benchmarks(db, days=days)
+    """Compare every ISP against a configurable benchmark profile."""
+    return admin_service.get_benchmarks(db, days=days, profile_id=profile_id)
 
 
 @router.put("/benchmarks", response_model=BenchmarkResponse)
@@ -155,9 +165,40 @@ def admin_update_benchmarks(
     days: int | None = Query(default=90, ge=1, le=3650),
     db: Session = Depends(get_db),
 ) -> BenchmarkResponse:
-    """Persist configurable benchmark thresholds, then recompute rankings."""
+    """Persist flat thresholds onto the active profile, then recompute rankings."""
     admin_service.save_profile(profile)
     return admin_service.get_benchmarks(db, days=days)
+
+
+@router.get("/benchmark-profiles", response_model=BenchmarkProfilesResponse)
+def admin_list_benchmark_profiles() -> BenchmarkProfilesResponse:
+    """List all configurable Ideal/use-case benchmark profiles (Phase 7)."""
+    return benchmark_service.list_profiles()
+
+
+@router.put("/benchmark-profiles/active", response_model=BenchmarkProfilesResponse)
+def admin_set_active_benchmark_profile(
+    profile_id: str = Query(..., description="Profile id to activate"),
+) -> BenchmarkProfilesResponse:
+    """Select which benchmark profile is active for rankings and comparisons."""
+    try:
+        return benchmark_service.set_active_profile(profile_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/benchmark-profiles/{profile_id}", response_model=BenchmarkProfilesResponse)
+def admin_update_benchmark_profile(
+    profile_id: str,
+    payload: BenchmarkProfileDetail,
+) -> BenchmarkProfilesResponse:
+    """Update a profile including per-metric source, rationale, unit, and threshold."""
+    if payload.id and payload.id != profile_id:
+        raise HTTPException(status_code=400, detail="Body id must match path profile_id")
+    try:
+        return benchmark_service.update_profile(profile_id, payload.model_copy(update={"id": profile_id}))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/history", response_model=HistoryAnalyticsResponse)

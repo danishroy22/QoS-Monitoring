@@ -100,7 +100,8 @@ On startup the app:
 ```text
 app/
 ├── main.py                        # Application factory, CORS, routers
-├── qos_benchmarks.json            # Ideal Broadband Profile (admin)
+├── qos_benchmarks.json            # Active profile flat thresholds (synced)
+├── qos_benchmark_profiles.json    # Multi-profile Ideal QoS catalog (Phase 7)
 ├── core/
 │   └── config.py                  # QOS_* settings, DB URL, OpenAI
 ├── db/
@@ -122,6 +123,7 @@ app/
 │   ├── admin_service.py           # ISP aggregations, heatmap
 │   ├── map_service.py             # Mauritius GeoJSON QoS map (Phase 5)
 │   ├── comparison_service.py      # Fair ISP comparison (Phase 6)
+│   ├── benchmark_service.py       # Ideal QoS profiles (Phase 7)
 │   ├── package_service.py         # ISP packages + fulfilment (Phase 4)
 │   ├── admin_ai.py                # Admin ISP narratives
 │   ├── admin_report.py            # PDF report

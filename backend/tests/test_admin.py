@@ -23,10 +23,70 @@ def test_region_from_server_label():
 
 
 def test_benchmark_profile_roundtrip(tmp_path, monkeypatch):
-    from app.services import admin_service
+    from app.services import admin_service, benchmark_service
 
-    path = tmp_path / "qos_benchmarks.json"
-    monkeypatch.setattr(admin_service, "BENCHMARK_PATH", path)
+    profiles = tmp_path / "qos_benchmark_profiles.json"
+    legacy = tmp_path / "qos_benchmarks.json"
+    monkeypatch.setattr(benchmark_service, "PROFILES_PATH", profiles)
+    monkeypatch.setattr(benchmark_service, "LEGACY_PATH", legacy)
+    monkeypatch.setattr(admin_service, "BENCHMARK_PATH", legacy)
+    # Seed a catalog so save_profile updates the active profile.
+    seed = {
+        "active_profile_id": "general-broadband",
+        "disclaimer": "test",
+        "profiles": [
+            {
+                "id": "general-broadband",
+                "name": "General Broadband",
+                "description": "test",
+                "metrics": {
+                    "download_mbps": {
+                        "threshold": 100,
+                        "unit": "Mbps",
+                        "source": "t",
+                        "rationale": "t",
+                        "description": "t",
+                    },
+                    "upload_mbps": {
+                        "threshold": 20,
+                        "unit": "Mbps",
+                        "source": "t",
+                        "rationale": "t",
+                        "description": "t",
+                    },
+                    "ping_ms": {
+                        "threshold": 20,
+                        "unit": "ms",
+                        "source": "t",
+                        "rationale": "t",
+                        "description": "t",
+                    },
+                    "jitter_ms": {
+                        "threshold": 5,
+                        "unit": "ms",
+                        "source": "t",
+                        "rationale": "t",
+                        "description": "t",
+                    },
+                    "packet_loss_pct": {
+                        "threshold": 0.5,
+                        "unit": "%",
+                        "source": "t",
+                        "rationale": "t",
+                        "description": "t",
+                    },
+                    "overall_score": {
+                        "threshold": 85,
+                        "unit": "/100",
+                        "source": "t",
+                        "rationale": "t",
+                        "description": "t",
+                    },
+                },
+            }
+        ],
+    }
+    profiles.write_text(__import__("json").dumps(seed), encoding="utf-8")
     saved = save_profile(BenchmarkProfile(download_mbps=150, ping_ms=15))
     assert saved.download_mbps == 150
     loaded = default_profile()

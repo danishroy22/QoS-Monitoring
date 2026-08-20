@@ -20,6 +20,8 @@ import {
   downloadAdminReport,
   fetchAdminAi,
   fetchAdminBenchmarks,
+  setActiveAdminBenchmarkProfile,
+  updateAdminBenchmarkProfile,
   fetchAdminComparison,
   fetchAdminDashboard,
   fetchAdminHeatmap,
@@ -161,6 +163,8 @@ export default function AdminPortal({ onBack }) {
   const [ai, setAi] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [profileDraft, setProfileDraft] = useState(null);
+  const [profileDetailDraft, setProfileDetailDraft] = useState(null);
+  const [selectedProfileId, setSelectedProfileId] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [packages, setPackages] = useState([]);
   const [packageForm, setPackageForm] = useState(EMPTY_PACKAGE_FORM);
@@ -181,6 +185,8 @@ export default function AdminPortal({ onBack }) {
       setIspData(isp);
       setBenchmarks(bench);
       setProfileDraft(bench.profile);
+      setSelectedProfileId(bench.active_profile_id || bench.profile_detail?.id || "");
+      setProfileDetailDraft(bench.profile_detail || null);
       setHeatmap(heat);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -304,6 +310,43 @@ export default function AdminPortal({ onBack }) {
       const data = await updateAdminBenchmarks(profileDraft, days);
       setBenchmarks(data);
       setProfileDraft(data.profile);
+      setProfileDetailDraft(data.profile_detail || null);
+      setSelectedProfileId(data.active_profile_id || "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSelectProfile = async (profileId) => {
+    setSelectedProfileId(profileId);
+    setSavingProfile(true);
+    setError(null);
+    try {
+      await setActiveAdminBenchmarkProfile(profileId);
+      const data = await fetchAdminBenchmarks(days, profileId);
+      setBenchmarks(data);
+      setProfileDraft(data.profile);
+      setProfileDetailDraft(data.profile_detail || null);
+      setSelectedProfileId(data.active_profile_id || profileId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSaveProfileDetail = async () => {
+    if (!profileDetailDraft?.id) return;
+    setSavingProfile(true);
+    setError(null);
+    try {
+      await updateAdminBenchmarkProfile(profileDetailDraft.id, profileDetailDraft);
+      const data = await fetchAdminBenchmarks(days, profileDetailDraft.id);
+      setBenchmarks(data);
+      setProfileDraft(data.profile);
+      setProfileDetailDraft(data.profile_detail || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -470,7 +513,12 @@ export default function AdminPortal({ onBack }) {
               benchmarks={benchmarks}
               profileDraft={profileDraft}
               setProfileDraft={setProfileDraft}
+              profileDetailDraft={profileDetailDraft}
+              setProfileDetailDraft={setProfileDetailDraft}
+              selectedProfileId={selectedProfileId}
+              onSelectProfile={handleSelectProfile}
               onSave={handleSaveProfile}
+              onSaveDetail={handleSaveProfileDetail}
               saving={savingProfile}
             />
           )}
@@ -1106,13 +1154,36 @@ function IspSection({ isps, labels }) {
   );
 }
 
-function BenchmarkSection({ benchmarks, profileDraft, setProfileDraft, onSave, saving }) {
+function BenchmarkSection({
+  benchmarks,
+  profileDraft,
+  setProfileDraft,
+  profileDetailDraft,
+  setProfileDetailDraft,
+  selectedProfileId,
+  onSelectProfile,
+  onSave,
+  onSaveDetail,
+  saving,
+}) {
   const rankings = benchmarks?.rankings || [];
   const labels = rankings.map((row) => row.isp);
+  const profiles = benchmarks?.profiles || [];
 
   const onField = (key, value) => {
     setProfileDraft((prev) => ({ ...prev, [key]: value }));
   };
+
+  const onMetricField = (metricKey, field, value) => {
+    setProfileDetailDraft((prev) => {
+      if (!prev) return prev;
+      const metrics = { ...(prev.metrics || {}) };
+      metrics[metricKey] = { ...(metrics[metricKey] || {}), [field]: value };
+      return { ...prev, metrics };
+    });
+  };
+
+  const metricEntries = Object.entries(profileDetailDraft?.metrics || {});
 
   return (
     <motion.div
@@ -1123,8 +1194,30 @@ function BenchmarkSection({ benchmarks, profileDraft, setProfileDraft, onSave, s
     >
       <GlassCard className="iq-panel" delay={0.04}>
         <PanelHeader
-          title="Ideal Broadband Profile"
-          subtitle="Configurable thresholds used to score every ISP"
+          title="Benchmark profiles"
+          subtitle="Use-case profiles with documented source and rationale — not universal standards"
+        />
+        <p className="admin-map-meta">{benchmarks?.disclaimer}</p>
+        <div className="admin-map-modes" role="tablist" aria-label="Benchmark profile">
+          {profiles.map((profile) => (
+            <button
+              key={profile.id}
+              type="button"
+              className={`admin-tab ${selectedProfileId === profile.id ? "is-active" : ""}`}
+              onClick={() => onSelectProfile(profile.id)}
+              disabled={saving}
+            >
+              {profile.name}
+            </button>
+          ))}
+        </div>
+        {profileDetailDraft ? <p className="admin-copy">{profileDetailDraft.description}</p> : null}
+      </GlassCard>
+
+      <GlassCard className="iq-panel" delay={0.06}>
+        <PanelHeader
+          title={profileDetailDraft?.name || "Active profile thresholds"}
+          subtitle="Quick numeric edit (writes into the active profile)"
         />
         {profileDraft && (
           <div className="admin-profile-grid">
@@ -1156,7 +1249,75 @@ function BenchmarkSection({ benchmarks, profileDraft, setProfileDraft, onSave, s
       </GlassCard>
 
       <GlassCard className="iq-panel" delay={0.08}>
-        <PanelHeader title="Benchmark compliance" subtitle="Share of samples meeting each ideal target" />
+        <PanelHeader
+          title="Metric documentation"
+          subtitle="Each threshold has source, rationale, unit, and description"
+        />
+        {metricEntries.length === 0 ? (
+          <EmptyHint>Select a profile to edit documented thresholds.</EmptyHint>
+        ) : (
+          <div className="admin-section">
+            {metricEntries.map(([key, metric]) => (
+              <article key={key} className="admin-heat-cell has-data">
+                <h3>
+                  {key} <small>({metric.unit})</small>
+                </h3>
+                <div className="admin-profile-grid">
+                  <label className="mon-field">
+                    <span>Threshold</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={metric.threshold}
+                      onChange={(e) => onMetricField(key, "threshold", Number(e.target.value))}
+                    />
+                  </label>
+                  <label className="mon-field">
+                    <span>Unit</span>
+                    <input
+                      type="text"
+                      value={metric.unit}
+                      onChange={(e) => onMetricField(key, "unit", e.target.value)}
+                    />
+                  </label>
+                  <label className="mon-field" style={{ gridColumn: "1 / -1" }}>
+                    <span>Source</span>
+                    <input
+                      type="text"
+                      value={metric.source}
+                      onChange={(e) => onMetricField(key, "source", e.target.value)}
+                    />
+                  </label>
+                  <label className="mon-field" style={{ gridColumn: "1 / -1" }}>
+                    <span>Rationale</span>
+                    <input
+                      type="text"
+                      value={metric.rationale}
+                      onChange={(e) => onMetricField(key, "rationale", e.target.value)}
+                    />
+                  </label>
+                  <label className="mon-field" style={{ gridColumn: "1 / -1" }}>
+                    <span>Description</span>
+                    <input
+                      type="text"
+                      value={metric.description}
+                      onChange={(e) => onMetricField(key, "description", e.target.value)}
+                    />
+                  </label>
+                </div>
+              </article>
+            ))}
+            <div className="mon-actions">
+              <SoftButton onClick={onSaveDetail} loading={saving}>
+                Save profile documentation
+              </SoftButton>
+            </div>
+          </div>
+        )}
+      </GlassCard>
+
+      <GlassCard className="iq-panel" delay={0.1}>
+        <PanelHeader title="Benchmark compliance" subtitle="Share of samples meeting each profile target" />
         {rankings.length === 0 ? (
           <EmptyHint>No ISP samples to benchmark.</EmptyHint>
         ) : (
@@ -1181,7 +1342,7 @@ function BenchmarkSection({ benchmarks, profileDraft, setProfileDraft, onSave, s
       </GlassCard>
 
       {rankings.map((row) => (
-        <GlassCard key={row.isp} className="iq-panel compact" delay={0.1}>
+        <GlassCard key={row.isp} className="iq-panel compact" delay={0.12}>
           <PanelHeader
             title={row.isp}
             subtitle={`Composite compliance ${row.composite_score != null ? `${row.composite_score}%` : "—"} · ${row.tests} tests`}

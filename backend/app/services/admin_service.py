@@ -216,6 +216,12 @@ def get_isp_analytics(db: Session, *, days: int | None = 90) -> IspAnalyticsResp
 
 
 def default_profile() -> BenchmarkProfile:
+    from app.services.benchmark_service import active_flat_profile
+
+    try:
+        return active_flat_profile()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not load active benchmark profile: %s", exc)
     if BENCHMARK_PATH.exists():
         try:
             payload = json.loads(BENCHMARK_PATH.read_text(encoding="utf-8"))
@@ -226,11 +232,45 @@ def default_profile() -> BenchmarkProfile:
 
 
 def save_profile(profile: BenchmarkProfile) -> BenchmarkProfile:
-    BENCHMARK_PATH.parent.mkdir(parents=True, exist_ok=True)
-    BENCHMARK_PATH.write_text(
-        json.dumps(profile.model_dump(), indent=2),
-        encoding="utf-8",
-    )
+    """Update the active profile's numeric thresholds (legacy flat editor)."""
+    from app.services import benchmark_service
+
+    catalog = benchmark_service.load_catalog()
+    active = benchmark_service.get_profile(catalog.get("active_profile_id"), catalog=catalog)
+    if active is None:
+        BENCHMARK_PATH.parent.mkdir(parents=True, exist_ok=True)
+        BENCHMARK_PATH.write_text(
+            json.dumps(profile.model_dump(), indent=2),
+            encoding="utf-8",
+        )
+        return profile
+
+    metrics = active.setdefault("metrics", {})
+    mapping = {
+        "download_mbps": profile.download_mbps,
+        "upload_mbps": profile.upload_mbps,
+        "ping_ms": profile.ping_ms,
+        "jitter_ms": profile.jitter_ms,
+        "packet_loss_pct": profile.packet_loss_pct,
+        "overall_score": float(profile.overall_score),
+    }
+    for key, value in mapping.items():
+        block = metrics.get(key) or {
+            "unit": "Mbps",
+            "source": "Administrator override",
+            "rationale": "Configured by administrator; not a universal standard.",
+            "description": f"Threshold for {key}.",
+        }
+        block["threshold"] = float(value)
+        metrics[key] = block
+    active["name"] = profile.name
+    active["description"] = profile.description
+    active["metrics"] = metrics
+    for idx, item in enumerate(catalog.get("profiles") or []):
+        if item.get("id") == active.get("id"):
+            catalog["profiles"][idx] = active
+            break
+    benchmark_service.save_catalog(catalog)
     return profile
 
 
@@ -273,8 +313,22 @@ def _composite(metrics: list[MetricCompliance]) -> float | None:
     return round(sum(parts) / len(parts), 1)
 
 
-def get_benchmarks(db: Session, *, days: int | None = 90) -> BenchmarkResponse:
-    profile = default_profile()
+def get_benchmarks(
+    db: Session, *, days: int | None = 90, profile_id: str | None = None
+) -> BenchmarkResponse:
+    from app.services import benchmark_service
+
+    catalog = benchmark_service.list_profiles()
+    detail = None
+    if profile_id:
+        detail = next((p for p in catalog.profiles if p.id == profile_id), None)
+    if detail is None:
+        detail = catalog.active
+    if detail is not None:
+        profile = benchmark_service.profile_to_flat(detail.model_dump())
+    else:
+        profile = default_profile()
+
     rows = _load_rows(db, days=days)
     grouped: dict[str, list[SpeedTestResult]] = defaultdict(list)
     for row in rows:
@@ -341,7 +395,15 @@ def get_benchmarks(db: Session, *, days: int | None = 90) -> BenchmarkResponse:
             )
         )
     rankings.sort(key=lambda r: (-(r.composite_score or -1), -r.tests))
-    return BenchmarkResponse(profile=profile, rankings=rankings, generated_at=_utcnow())
+    return BenchmarkResponse(
+        profile=profile,
+        profile_detail=detail,
+        active_profile_id=catalog.active_profile_id,
+        disclaimer=catalog.disclaimer,
+        profiles=catalog.profiles,
+        rankings=rankings,
+        generated_at=_utcnow(),
+    )
 
 
 def _period_key(stamp: datetime, granularity: str) -> str:
