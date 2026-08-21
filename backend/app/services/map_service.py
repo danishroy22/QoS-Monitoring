@@ -334,6 +334,9 @@ def build_qos_map(
 
     stmt = select(SpeedTestResult).order_by(SpeedTestResult.timestamp.asc())
     all_rows = list(db.scalars(stmt))
+    from app.services.data_quality_service import filter_analytics_eligible
+
+    all_rows = filter_analytics_eligible(all_rows)
     # Options should stay stable while a filter is applied (use date window only).
     option_rows = _filter_rows(
         all_rows,

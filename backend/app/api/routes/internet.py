@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -158,9 +158,11 @@ def speedtest_complete(
 @router.get("/history", response_model=HistoryResponse)
 def history(
     limit: int = Query(default=50, ge=1, le=500),
+    x_client_hash: str | None = Header(default=None, alias="X-Client-Hash"),
     db: Session = Depends(get_db),
 ) -> HistoryResponse:
-    return internet_service.list_history(db, limit=limit)
+    """Consumer history. Optional ``X-Client-Hash`` scopes to own tests (Phase 15)."""
+    return internet_service.list_history(db, limit=limit, client_hash=x_client_hash)
 
 
 @router.get("/dashboard", response_model=DashboardResponse)

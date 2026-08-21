@@ -21,12 +21,13 @@ APIs and the GO / speedometer experience are unchanged.
 | GET/POST | `/admin/ai/ask` | Answer ISP analytics questions from facts |
 | GET | `/admin/ai/root-cause` | Cautious root-cause style patterns (Phase 11) |
 | GET | `/admin/report` | Filtered multi-section QoS PDF (Phase 12) |
+| GET | `/admin/auth/status` | Role + permissions (Phase 15) |
+| GET | `/admin/data-quality` | Quality flags + sample sizes (Phase 16) |
+| POST | `/admin/data-quality/reassess` | Re-mark rows (Administrator only) |
 | GET | `/admin/history` | `granularity=hourly\|daily\|weekly\|monthly` |
 | GET | `/admin/heatmap` | Aggregate by Mauritius region |
-| GET | `/admin/ai/isp-analysis` | Natural-language ISP summaries |
-| GET | `/admin/report` | Professional QoS PDF |
 
-Query: `days` (default 90) on GET endpoints.
+Query: `days` (default 90) on GET endpoints. Phase 15 scopes ISP Administrators to their own ISP.
 
 ## Benchmarks
 

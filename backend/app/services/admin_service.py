@@ -115,12 +115,30 @@ def region_from_label(label: str | None) -> str:
     return "Unknown"
 
 
-def _load_rows(db: Session, *, days: int | None) -> list[SpeedTestResult]:
+def _load_rows(
+    db: Session,
+    *,
+    days: int | None,
+    isp: str | None = None,
+    analytics_only: bool = True,
+) -> list[SpeedTestResult]:
     stmt = select(SpeedTestResult).order_by(SpeedTestResult.timestamp.asc())
     if days:
         cutoff = _utcnow() - timedelta(days=days)
         stmt = stmt.where(SpeedTestResult.timestamp >= cutoff)
-    return list(db.scalars(stmt))
+    rows = list(db.scalars(stmt))
+    if isp:
+        wanted = normalize_isp(isp)
+        rows = [r for r in rows if normalize_isp(r.isp_name) == wanted]
+    if analytics_only:
+        filtered: list[SpeedTestResult] = []
+        for row in rows:
+            # Legacy rows without quality marking remain eligible.
+            if row.analytics_eligible is False:
+                continue
+            filtered.append(row)
+        return filtered
+    return rows
 
 
 def _isp_rows(rows: list[SpeedTestResult]) -> list[IspMetricRow]:
@@ -160,8 +178,11 @@ def _isp_rows(rows: list[SpeedTestResult]) -> list[IspMetricRow]:
     return out
 
 
-def get_dashboard(db: Session, *, days: int | None = 90) -> AdminDashboardResponse:
-    rows = _load_rows(db, days=days)
+def get_dashboard(
+    db: Session, *, days: int | None = 90, isp: str | None = None
+) -> AdminDashboardResponse:
+    all_rows = _load_rows(db, days=days, isp=isp, analytics_only=False)
+    rows = _load_rows(db, days=days, isp=isp, analytics_only=True)
     now = _utcnow()
     day_ago = now - timedelta(hours=24)
     tests_24h = sum(1 for r in rows if (_aware(r.timestamp) or now) >= day_ago)
@@ -189,8 +210,11 @@ def get_dashboard(db: Session, *, days: int | None = 90) -> AdminDashboardRespon
         last_rating=latest.overall_rating if latest else None,
     )
 
+    avg_dl = _mean(r.download_mbps for r in rows)
+    n = len(rows)
     kpis = AdminKpis(
-        total_tests=len(rows),
+        total_tests=len(all_rows),
+        analytics_n=n,
         isp_count=len(leaderboard),
         region_count=len(
             {
@@ -200,13 +224,18 @@ def get_dashboard(db: Session, *, days: int | None = 90) -> AdminDashboardRespon
         ),
         tests_24h=tests_24h,
         avg_qos_score=_mean(r.overall_score for r in rows),
-        avg_download_mbps=_mean(r.download_mbps for r in rows),
+        avg_download_mbps=avg_dl,
         avg_upload_mbps=_mean(r.upload_mbps for r in rows),
         avg_ping_ms=_mean(r.ping_ms for r in rows),
         avg_jitter_ms=_mean(r.jitter_ms for r in rows),
         avg_packet_loss_pct=_mean(r.packet_loss_pct for r in rows),
         excellent_pct=_pct(excellent, len(rows)) if rows else None,
         last_test_at=_aware(latest.timestamp) if latest else None,
+        sample_note=(
+            f"Average Download: {avg_dl} Mbps (n={n:,})"
+            if avg_dl is not None
+            else f"Average Download: — (n={n})"
+        ),
     )
     return AdminDashboardResponse(
         kpis=kpis,
@@ -217,8 +246,10 @@ def get_dashboard(db: Session, *, days: int | None = 90) -> AdminDashboardRespon
     )
 
 
-def get_isp_analytics(db: Session, *, days: int | None = 90) -> IspAnalyticsResponse:
-    rows = _load_rows(db, days=days)
+def get_isp_analytics(
+    db: Session, *, days: int | None = 90, isp: str | None = None
+) -> IspAnalyticsResponse:
+    rows = _load_rows(db, days=days, isp=isp)
     return IspAnalyticsResponse(isps=_isp_rows(rows), generated_at=_utcnow())
 
 
@@ -321,7 +352,7 @@ def _composite(metrics: list[MetricCompliance]) -> float | None:
 
 
 def get_benchmarks(
-    db: Session, *, days: int | None = 90, profile_id: str | None = None
+    db: Session, *, days: int | None = 90, profile_id: str | None = None, isp: str | None = None
 ) -> BenchmarkResponse:
     from app.services import benchmark_service
 
@@ -336,7 +367,7 @@ def get_benchmarks(
     else:
         profile = default_profile()
 
-    rows = _load_rows(db, days=days)
+    rows = _load_rows(db, days=days, isp=isp)
     grouped: dict[str, list[SpeedTestResult]] = defaultdict(list)
     for row in rows:
         grouped[normalize_isp(row.isp_name)].append(row)
@@ -426,10 +457,16 @@ def _period_key(stamp: datetime, granularity: str, *, hour_utc: int | None = Non
     return stamp.strftime("%Y-%m-%d")
 
 
-def get_history(db: Session, *, granularity: str = "daily", days: int | None = 90) -> HistoryAnalyticsResponse:
+def get_history(
+    db: Session,
+    *,
+    granularity: str = "daily",
+    days: int | None = 90,
+    isp: str | None = None,
+) -> HistoryAnalyticsResponse:
     if granularity not in {"hourly", "daily", "weekly", "monthly"}:
         granularity = "daily"
-    rows = _load_rows(db, days=days)
+    rows = _load_rows(db, days=days, isp=isp)
     buckets: dict[str, list[SpeedTestResult]] = defaultdict(list)
     for row in rows:
         buckets[
@@ -462,10 +499,10 @@ def get_history(db: Session, *, granularity: str = "daily", days: int | None = 9
 
 
 def get_package_performance(
-    db: Session, *, days: int | None = 90
+    db: Session, *, days: int | None = 90, isp: str | None = None
 ) -> PackagePerformanceResponse:
     """Advertised vs measured package performance (Phase 9)."""
-    rows = _load_rows(db, days=days)
+    rows = _load_rows(db, days=days, isp=isp)
     grouped: dict[tuple[str, str], list[SpeedTestResult]] = defaultdict(list)
     for row in rows:
         package = (row.internet_package or "").strip()
@@ -502,8 +539,8 @@ def get_package_performance(
     )
 
 
-def get_heatmap(db: Session, *, days: int | None = 90) -> HeatmapResponse:
-    rows = _load_rows(db, days=days)
+def get_heatmap(db: Session, *, days: int | None = 90, isp: str | None = None) -> HeatmapResponse:
+    rows = _load_rows(db, days=days, isp=isp)
     buckets: dict[str, list[SpeedTestResult]] = defaultdict(list)
     for row in rows:
         buckets[region_from_label(row.server_label)].append(row)

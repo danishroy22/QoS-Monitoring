@@ -31,13 +31,19 @@ def _to_out(row: InternetPackage) -> InternetPackageOut:
     return InternetPackageOut.model_validate(row)
 
 
-def list_packages(db: Session, *, active_only: bool = False) -> list[InternetPackageOut]:
+def list_packages(
+    db: Session, *, active_only: bool = False, isp: str | None = None
+) -> list[InternetPackageOut]:
     stmt = select(InternetPackage).order_by(
         InternetPackage.isp_name.asc(), InternetPackage.package_name.asc()
     )
     if active_only:
         stmt = stmt.where(InternetPackage.active.is_(True))
-    return [_to_out(row) for row in db.scalars(stmt)]
+    rows = list(db.scalars(stmt))
+    if isp:
+        wanted = normalize_isp(isp)
+        rows = [r for r in rows if normalize_isp(r.isp_name) == wanted]
+    return [_to_out(row) for row in rows]
 
 
 def get_package(db: Session, package_id: int) -> InternetPackage | None:

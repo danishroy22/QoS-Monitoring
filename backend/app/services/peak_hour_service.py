@@ -114,7 +114,10 @@ def _package_of(row: SpeedTestResult) -> str:
 
 
 def _load_rows(db: Session) -> list[SpeedTestResult]:
-    return list(db.scalars(select(SpeedTestResult).order_by(SpeedTestResult.timestamp)).all())
+    from app.services.data_quality_service import filter_analytics_eligible
+
+    rows = list(db.scalars(select(SpeedTestResult).order_by(SpeedTestResult.timestamp)).all())
+    return filter_analytics_eligible(rows)
 
 
 def _filter_rows(

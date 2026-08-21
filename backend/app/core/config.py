@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = 30.0
     ai_force_fallback: bool = False
 
+    # Phase 15 — role-based access (token headers). Default off for local demos.
+    auth_required: bool = False
+    admin_token: str = "admin-demo-token"
+    # Format: Emtel:emtel-demo-token,Rogers:rogers-demo-token
+    isp_tokens: str = "Emtel:emtel-demo-token,Rogers:rogers-demo-token,Mauritius Telecom / Orange:mt-demo-token"
+
     @property
     def resolved_database_url(self) -> str:
         """Prefer Supabase connection string when configured."""

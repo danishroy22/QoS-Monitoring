@@ -52,8 +52,9 @@ Open **http://127.0.0.1:5173** and click **GO**.
 | GET/POST | `/admin/ai/ask` | Grounded ISP analytics Q&A (Phase 10) |
 | GET | `/admin/ai/root-cause` | Cautious root-cause style patterns (Phase 11) |
 | GET | `/admin/report` | Filtered multi-section QoS PDF (Phase 12) |
+| GET | `/admin/auth/status` | Portal role + permissions (Phase 15) |
+| GET | `/admin/data-quality` | Quality flags + sample sizes (Phase 16) |
 | GET | `/admin/dashboard` | Administrator KPIs and ISP leaderboard |
-| GET | `/admin/report` | Administrator QoS PDF report |
 
 Example:
 
@@ -93,6 +94,8 @@ Full module map: **[PROGRAM_STRUCTURE.md](PROGRAM_STRUCTURE.md)**
 - `docs/phase10-ai-isp-analysis.md` — Phase 10 AI ISP analysis Q&A
 - `docs/phase11-root-cause.md` — Phase 11 root-cause style analysis
 - `docs/phase12-report-generation.md` — Phase 12 QoS PDF report
+- `docs/phase15-roles.md` — Phase 15 Consumer / Admin / ISP Admin roles
+- `docs/phase16-data-quality.md` — Phase 16 data quality & sample sizes
 - `backend/simulator/` — legacy synthetic NOC generator (still available under `/api`)
 
 ## Optional Generative AI

@@ -229,7 +229,7 @@ def analyze_root_cause(
         region=region,
         days=days,
     )
-    history = get_history(db, granularity="daily", days=days)
+    history = get_history(db, granularity="daily", days=days, isp=isp)
 
     patterns: list[RootCausePattern] = []
     window = peak.get("peak_window")

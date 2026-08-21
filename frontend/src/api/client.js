@@ -9,11 +9,11 @@ async function request(path, options = {}) {
   let response;
   try {
     response = await fetch(url, {
+      ...options,
       headers: {
         Accept: "application/json",
         ...(options.headers ?? {}),
       },
-      ...options,
     });
   } catch (err) {
     throw new Error(
@@ -314,6 +314,14 @@ export function fetchAdminRootCause(filters = {}) {
   });
   const qs = params.toString();
   return request(`/admin/ai/root-cause${qs ? `?${qs}` : ""}`);
+}
+
+export function fetchAdminDataQuality(days = 90) {
+  return request(`/admin/data-quality?days=${days}`);
+}
+
+export function reassessAdminDataQuality(limit = 5000) {
+  return request(`/admin/data-quality/reassess?limit=${limit}`, { method: "POST" });
 }
 
 export async function downloadAdminReport(filters = {}) {

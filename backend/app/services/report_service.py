@@ -151,6 +151,9 @@ def build_report_bundle(
     """Assemble all sections required by the Phase 12 PDF report."""
     effective_days = None if (date_from or date_to) else days
     all_rows = list(db.scalars(select(SpeedTestResult)).all())
+    from app.services.data_quality_service import filter_analytics_eligible
+
+    all_rows = filter_analytics_eligible(all_rows)
     rows = _filter_rows(
         all_rows,
         isp=isp,

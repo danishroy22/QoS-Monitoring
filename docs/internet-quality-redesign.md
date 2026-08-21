@@ -152,6 +152,21 @@ package / region, metric analyses, peak hours, AI, limitations).
 - `GET /admin/report`
 - Docs: `docs/phase12-report-generation.md`
 
+## Supervisor Phase 15 — Administrator / ISP roles
+
+Token-header RBAC: Consumer / Administrator / ISP Administrator (own-ISP scope only).
+
+- `GET /admin/auth/status`
+- Docs: `docs/phase15-roles.md`
+
+## Supervisor Phase 16 — Data quality and validation
+
+Mark invalid/incomplete/outlier/duplicate rows; never silent delete; show `n=` on analytics.
+
+- `GET /admin/data-quality`
+- `POST /admin/data-quality/reassess`
+- Docs: `docs/phase16-data-quality.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

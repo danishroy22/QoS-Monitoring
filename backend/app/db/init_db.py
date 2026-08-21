@@ -112,6 +112,9 @@ def ensure_speed_test_columns() -> None:
         "test_date": "ALTER TABLE speed_tests ADD COLUMN test_date VARCHAR(10)",
         "day_of_week": "ALTER TABLE speed_tests ADD COLUMN day_of_week INTEGER",
         "hour_utc": "ALTER TABLE speed_tests ADD COLUMN hour_utc INTEGER",
+        "quality_status": "ALTER TABLE speed_tests ADD COLUMN quality_status VARCHAR(40)",
+        "quality_flags_json": "ALTER TABLE speed_tests ADD COLUMN quality_flags_json TEXT",
+        "analytics_eligible": "ALTER TABLE speed_tests ADD COLUMN analytics_eligible BOOLEAN",
     }
     with engine.begin() as conn:
         for name, sql in statements.items():

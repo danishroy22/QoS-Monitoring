@@ -23,6 +23,8 @@ import {
   askAdminAi,
   fetchAdminRootCause,
   fetchAdminBenchmarks,
+  fetchAdminDataQuality,
+  reassessAdminDataQuality,
   setActiveAdminBenchmarkProfile,
   updateAdminBenchmarkProfile,
   fetchAdminComparison,
@@ -59,6 +61,7 @@ const TABS = [
   { id: "map", label: "QoS Map" },
   { id: "ai", label: "AI Analysis" },
   { id: "report", label: "Report" },
+  { id: "quality", label: "Data Quality" },
 ];
 
 const MAP_METRICS = [
@@ -133,6 +136,8 @@ export default function AdminPortal({ onBack }) {
   const [days, setDays] = useState(90);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [quality, setQuality] = useState(null);
+  const [qualityBusy, setQualityBusy] = useState(false);
   const [reportBusy, setReportBusy] = useState(false);
   const [reportFilters, setReportFilters] = useState({
     isp: "",
@@ -234,6 +239,15 @@ export default function AdminPortal({ onBack }) {
     }
   }, [days]);
 
+  const loadQuality = useCallback(async () => {
+    try {
+      const data = await fetchAdminDataQuality(days);
+      setQuality(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [days]);
+
   const loadHistory = useCallback(async () => {
     try {
       const data = await fetchAdminHistory(granularity, days);
@@ -263,6 +277,10 @@ export default function AdminPortal({ onBack }) {
   useEffect(() => {
     if (tab === "packages") loadPackages();
   }, [tab, loadPackages]);
+
+  useEffect(() => {
+    if (tab === "quality") loadQuality();
+  }, [tab, loadQuality]);
 
   useEffect(() => {
     if (tab !== "map") return undefined;
@@ -664,8 +682,102 @@ export default function AdminPortal({ onBack }) {
               busy={reportBusy}
             />
           )}
+          {tab === "quality" && (
+            <QualitySection
+              key="quality"
+              quality={quality}
+              busy={qualityBusy}
+              canReassess
+              onReassess={async () => {
+                setQualityBusy(true);
+                try {
+                  await reassessAdminDataQuality();
+                  await loadQuality();
+                  await loadCore();
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : String(err));
+                } finally {
+                  setQualityBusy(false);
+                }
+              }}
+            />
+          )}
         </AnimatePresence>
       )}
+    </motion.div>
+  );
+}
+
+function QualitySection({ quality, busy, canReassess, onReassess }) {
+  const counts = quality?.counts || {};
+  const flags = Object.entries(quality?.flag_counts || {});
+  return (
+    <motion.div
+      className="admin-section"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+    >
+      <GlassCard className="iq-panel" delay={0.02}>
+        <PanelHeader
+          title="Data quality & validation"
+          subtitle="Rows are marked, never silently deleted — analytics use eligible samples only"
+          action={
+            canReassess ? (
+              <SoftButton onClick={onReassess} loading={busy}>
+                Reassess stored rows
+              </SoftButton>
+            ) : null
+          }
+        />
+        <p className="admin-copy">{quality?.analytics_example || "Loading sample-size example…"}</p>
+        <p className="admin-map-meta">{quality?.note}</p>
+        <div className="admin-kpi-grid" style={{ marginTop: "1rem" }}>
+          {[
+            ["total", "Stored"],
+            ["analytics_eligible", "Eligible"],
+            ["valid", "Valid"],
+            ["incomplete", "Incomplete"],
+            ["failed", "Failed"],
+            ["outlier", "Outliers"],
+            ["duplicate_suspect", "Duplicates"],
+            ["isp_detection_failed", "ISP fail"],
+            ["missing_package_information", "No package"],
+            ["missing_geographic_information", "No geo"],
+          ].map(([key, label], i) => (
+            <KpiCard
+              key={key}
+              label={label}
+              value={counts[key] ?? 0}
+              icon={Activity}
+              accent="primary"
+              delay={0.03 + i * 0.01}
+            />
+          ))}
+        </div>
+        {flags.length > 0 ? (
+          <div className="admin-table-wrap" style={{ marginTop: "1rem" }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {flags.map(([flag, count]) => (
+                  <tr key={flag}>
+                    <td>{flag}</td>
+                    <td>{count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyHint>No quality flags yet — run tests or reassess legacy rows.</EmptyHint>
+        )}
+      </GlassCard>
     </motion.div>
   );
 }
@@ -690,10 +802,18 @@ function OverviewSection({ dashboard, heatmap, packagePerformance }) {
           title="Overall Mauritius QoS"
           subtitle="Aggregated from stored speed_tests for the selected window"
         />
+        {kpis?.sample_note ? <p className="admin-map-meta">{kpis.sample_note}</p> : null}
       </GlassCard>
 
       <div className="admin-kpi-grid">
-        <KpiCard label="Total tests" value={kpis?.total_tests ?? 0} icon={Activity} accent="download" delay={0.04} />
+        <KpiCard label="Stored tests" value={kpis?.total_tests ?? 0} icon={Activity} accent="download" delay={0.04} />
+        <KpiCard
+          label="Analytics n"
+          value={kpis?.analytics_n ?? kpis?.total_tests ?? 0}
+          icon={Activity}
+          accent="primary"
+          delay={0.045}
+        />
         <KpiCard label="ISPs" value={kpis?.isp_count ?? 0} icon={Wifi} accent="upload" delay={0.05} />
         <KpiCard label="Regions" value={kpis?.region_count ?? 0} icon={MapPinned} accent="primary" delay={0.06} />
         <KpiCard
@@ -707,7 +827,7 @@ function OverviewSection({ dashboard, heatmap, packagePerformance }) {
         <KpiCard
           label="Avg download"
           value={kpis?.avg_download_mbps != null ? formatNumber(kpis.avg_download_mbps, 1) : "—"}
-          unit="Mbps"
+          unit={`Mbps (n=${kpis?.analytics_n ?? 0})`}
           icon={ArrowDownToLine}
           accent="download"
           delay={0.08}

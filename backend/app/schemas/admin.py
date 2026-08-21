@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class AdminKpis(BaseModel):
     total_tests: int = 0
+    analytics_n: int | None = None
     isp_count: int = 0
     region_count: int = 0
     tests_24h: int = 0
@@ -21,6 +22,7 @@ class AdminKpis(BaseModel):
     avg_packet_loss_pct: float | None = None
     excellent_pct: float | None = None
     last_test_at: datetime | None = None
+    sample_note: str | None = None
 
 
 class AdminLiveStats(BaseModel):

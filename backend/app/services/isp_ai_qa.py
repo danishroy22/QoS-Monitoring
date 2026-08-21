@@ -56,14 +56,14 @@ def _fmt(value: float | None, digits: int = 1, suffix: str = "") -> str:
     return f"{value:.{digits}f}{suffix}"
 
 
-def build_isp_facts(db: Session, *, days: int | None = 90) -> dict[str, Any]:
+def build_isp_facts(db: Session, *, days: int | None = 90, isp: str | None = None) -> dict[str, Any]:
     """Retrieve structured aggregates used by every Phase 10 answer."""
-    dashboard = get_dashboard(db, days=days)
-    analytics = get_isp_analytics(db, days=days)
-    packages = get_package_performance(db, days=days)
-    heatmap = get_heatmap(db, days=days)
-    peak = peak_hour_service.analyze_peak_hours(db, days=days)
-    history_daily = get_history(db, granularity="daily", days=days)
+    dashboard = get_dashboard(db, days=days, isp=isp)
+    analytics = get_isp_analytics(db, days=days, isp=isp)
+    packages = get_package_performance(db, days=days, isp=isp)
+    heatmap = get_heatmap(db, days=days, isp=isp)
+    peak = peak_hour_service.analyze_peak_hours(db, days=days, isp=isp)
+    history_daily = get_history(db, granularity="daily", days=days, isp=isp)
 
     isps = [row.model_dump() for row in analytics.isps]
     by_latency = sorted(
@@ -473,8 +473,10 @@ def _offline_answer(intent: str, facts: dict[str, Any], isp_hint: str | None) ->
     return answer.strip(), citations
 
 
-def list_isp_facts(db: Session, *, days: int | None = 90) -> IspAiFactsResponse:
-    facts = build_isp_facts(db, days=days)
+def list_isp_facts(
+    db: Session, *, days: int | None = 90, isp: str | None = None
+) -> IspAiFactsResponse:
+    facts = build_isp_facts(db, days=days, isp=isp)
     return IspAiFactsResponse(
         window_days=days,
         facts=facts,
@@ -485,12 +487,12 @@ def list_isp_facts(db: Session, *, days: int | None = 90) -> IspAiFactsResponse:
 
 
 def answer_isp_question(
-    db: Session, *, question: str, days: int | None = 90
+    db: Session, *, question: str, days: int | None = 90, isp: str | None = None
 ) -> IspAiAskResponse:
     cleaned = (question or "").strip()
     if not cleaned:
         cleaned = EXAMPLE_QUESTIONS[0]
-    facts = build_isp_facts(db, days=days)
+    facts = build_isp_facts(db, days=days, isp=isp)
     intent, isp_hint = _detect_intent(cleaned)
     offline_answer, citations = _offline_answer(intent, facts, isp_hint)
 

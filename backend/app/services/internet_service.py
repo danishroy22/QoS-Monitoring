@@ -286,6 +286,9 @@ def _persist_measurement(db: Session, measured) -> SpeedTestRunResponse:
         overall_rating=health.overall_rating,
         errors_json=json.dumps(measured.errors) if measured.errors else None,
     )
+    from app.services.data_quality_service import apply_quality_to_row
+
+    apply_quality_to_row(db, row)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -308,14 +311,18 @@ def get_aggregations(
     return AggregationResponse.model_validate(payload)
 
 
-def list_history(db: Session, *, limit: int = 50) -> HistoryResponse:
-    rows = list(
-        db.scalars(
+def list_history(
+    db: Session, *, limit: int = 50, client_hash: str | None = None
+) -> HistoryResponse:
+    stmt = select(SpeedTestResult).order_by(SpeedTestResult.timestamp.desc()).limit(limit)
+    if client_hash:
+        stmt = (
             select(SpeedTestResult)
+            .where(SpeedTestResult.client_hash == client_hash)
             .order_by(SpeedTestResult.timestamp.desc())
             .limit(limit)
         )
-    )
+    rows = list(db.scalars(stmt))
     return HistoryResponse(count=len(rows), results=[_to_out(r) for r in rows])
 
 

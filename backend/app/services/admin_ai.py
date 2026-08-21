@@ -89,9 +89,9 @@ def _offline_isp_card(row) -> IspAiCard:
     )
 
 
-def _offline_analysis(db: Session, *, days: int | None) -> AdminAiResponse:
-    dashboard = get_dashboard(db, days=days)
-    analytics = get_isp_analytics(db, days=days)
+def _offline_analysis(db: Session, *, days: int | None, isp: str | None = None) -> AdminAiResponse:
+    dashboard = get_dashboard(db, days=days, isp=isp)
+    analytics = get_isp_analytics(db, days=days, isp=isp)
     cards = [_offline_isp_card(row) for row in analytics.isps]
     kpis = dashboard.kpis
     if not cards:
@@ -154,11 +154,13 @@ def _llm_json(settings, user_prompt: str) -> dict[str, Any] | None:
         return None
 
 
-def generate_isp_analysis(db: Session, *, days: int | None = 90) -> AdminAiResponse:
-    fallback = _offline_analysis(db, days=days)
+def generate_isp_analysis(
+    db: Session, *, days: int | None = 90, isp: str | None = None
+) -> AdminAiResponse:
+    fallback = _offline_analysis(db, days=days, isp=isp)
     settings = get_settings()
-    analytics = get_isp_analytics(db, days=days)
-    benchmarks = get_benchmarks(db, days=days)
+    analytics = get_isp_analytics(db, days=days, isp=isp)
+    benchmarks = get_benchmarks(db, days=days, isp=isp)
     user_prompt = json.dumps(
         {
             "window_days": days,

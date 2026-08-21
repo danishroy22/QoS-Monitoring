@@ -84,6 +84,10 @@ class SpeedTestResult(Base):
     overall_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     overall_rating: Mapped[str | None] = mapped_column(String(40), nullable=True)
     errors_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Phase 16 — data quality (rows are marked, never silently deleted)
+    quality_status: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    quality_flags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    analytics_eligible: Mapped[bool | None] = mapped_column(Boolean, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
     )
