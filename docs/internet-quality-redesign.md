@@ -107,6 +107,14 @@ unit, threshold, and description. Thresholds are **not** universal standards.
 - `PUT /admin/benchmark-profiles/{id}`
 - Docs: `docs/phase7-benchmark-profiles.md`
 
+## Supervisor Phase 8 — Peak-hour / congestion patterns
+
+Detect busy-hour degradation vs off-peak baselines (hour, day, ISP, region,
+package). Wording stays cautious — does not claim confirmed congestion.
+
+- `GET /admin/peak-hours`
+- Docs: `docs/phase8-peak-hours.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

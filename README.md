@@ -47,6 +47,7 @@ Open **http://127.0.0.1:5173** and click **GO**.
 | GET | `/admin/map` | Mauritius district QoS GeoJSON map |
 | GET | `/admin/comparison` | Fair ISP comparison (stats + filters) |
 | GET | `/admin/benchmark-profiles` | Ideal / use-case QoS profiles (Phase 7) |
+| GET | `/admin/peak-hours` | Peak-hour / congestion-pattern analysis (Phase 8) |
 | GET | `/admin/dashboard` | Administrator KPIs and ISP leaderboard |
 | GET | `/admin/report` | Administrator QoS PDF report |
 
@@ -83,6 +84,7 @@ Full module map: **[PROGRAM_STRUCTURE.md](PROGRAM_STRUCTURE.md)**
 - `docs/phase5-qos-map.md` — Phase 5 Mauritius QoS map
 - `docs/phase6-isp-comparison.md` — Phase 6 fair ISP comparison
 - `docs/phase7-benchmark-profiles.md` — Phase 7 Ideal QoS / benchmark profiles
+- `docs/phase8-peak-hours.md` — Phase 8 peak-hour / congestion patterns
 - `backend/simulator/` — legacy synthetic NOC generator (still available under `/api`)
 
 ## Optional Generative AI

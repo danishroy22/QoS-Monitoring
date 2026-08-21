@@ -269,3 +269,66 @@ class AdminAiResponse(BaseModel):
     recommendations: list[str]
     model_provider: str
     generated_at: datetime
+
+
+class PeakMetricDelta(BaseModel):
+    key: str
+    label: str
+    unit: str
+    higher_is_better: bool
+    peak_avg: float | None = None
+    baseline_avg: float | None = None
+    delta_pct: float | None = None
+    delta_abs: float | None = None
+    degraded: bool | None = None
+
+
+class PeakWindow(BaseModel):
+    hour_from: int
+    hour_to: int
+    hours: list[int]
+    label: str
+    tests: int
+    baseline_tests: int
+    degradation_score: float | None = None
+    metrics: list[PeakMetricDelta]
+
+
+class PeakHourBucket(BaseModel):
+    hour: int
+    label: str
+    tests: int
+    averages: dict[str, float | None]
+    in_peak_window: bool = False
+
+
+class PeakGroupRow(BaseModel):
+    key: str | int
+    label: str
+    tests: int
+    peak_tests: int = 0
+    baseline_tests: int = 0
+    degradation_score: float | None = None
+    metrics: list[PeakMetricDelta]
+    averages: dict[str, float | None] = {}
+
+
+class PeakHourBreakdowns(BaseModel):
+    isp: list[PeakGroupRow] = []
+    region: list[PeakGroupRow] = []
+    package: list[PeakGroupRow] = []
+
+
+class PeakHourResponse(BaseModel):
+    disclaimer: str
+    interpretation: str
+    peak_window: PeakWindow | None = None
+    hourly: list[PeakHourBucket]
+    by_day_of_week: list[PeakGroupRow] = []
+    breakdowns: PeakHourBreakdowns
+    filters: dict
+    available_isps: list[str] = []
+    available_packages: list[str] = []
+    available_regions: list[str] = []
+    total_tests: int = 0
+    generated_at: datetime | str

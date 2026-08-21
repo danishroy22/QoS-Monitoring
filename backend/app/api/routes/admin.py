@@ -24,6 +24,7 @@ from app.schemas.admin import (
     HistoryAnalyticsResponse,
     IspAnalyticsResponse,
     IspComparisonResponse,
+    PeakHourResponse,
     QosMapResponse,
 )
 from app.schemas.packages import (
@@ -39,6 +40,7 @@ from app.services import (
     benchmark_service,
     comparison_service,
     package_service,
+    peak_hour_service,
 )
 from app.services import map_service
 
@@ -98,6 +100,29 @@ def admin_isp_comparison(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return IspComparisonResponse.model_validate(payload)
+
+
+@router.get("/peak-hours", response_model=PeakHourResponse)
+def admin_peak_hours(
+    isp: str | None = Query(default=None),
+    package: str | None = Query(default=None),
+    region: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    days: int | None = Query(default=90, ge=1, le=3650),
+    db: Session = Depends(get_db),
+) -> PeakHourResponse:
+    """Peak-hour / congestion-pattern analysis vs off-peak baseline (Phase 8)."""
+    payload = peak_hour_service.analyze_peak_hours(
+        db,
+        isp=isp,
+        package=package,
+        region=region,
+        date_from=date_from,
+        date_to=date_to,
+        days=None if (date_from or date_to) else days,
+    )
+    return PeakHourResponse.model_validate(payload)
 
 
 @router.get("/packages", response_model=InternetPackageListResponse)

@@ -3,6 +3,7 @@ import {
   Activity,
   ArrowDownToLine,
   ArrowUpFromLine,
+  Clock,
   Download,
   Gauge,
   MapPinned,
@@ -29,6 +30,7 @@ import {
   fetchAdminHistory,
   fetchAdminIspAnalytics,
   fetchAdminPackages,
+  fetchAdminPeakHours,
   createAdminPackage,
   updateAdminPackage,
   deactivateAdminPackage,
@@ -46,6 +48,7 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "isp", label: "ISP Analytics" },
   { id: "compare", label: "Compare" },
+  { id: "peak", label: "Peak Hours" },
   { id: "packages", label: "Packages" },
   { id: "benchmarks", label: "Benchmarks" },
   { id: "history", label: "History" },
@@ -160,6 +163,16 @@ export default function AdminPortal({ onBack }) {
     hour_from: "",
     hour_to: "",
   });
+  const [peakData, setPeakData] = useState(null);
+  const [peakLoading, setPeakLoading] = useState(false);
+  const [peakFilters, setPeakFilters] = useState({
+    isp: "",
+    package: "",
+    region: "",
+    days: 90,
+    date_from: "",
+    date_to: "",
+  });
   const [ai, setAi] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [profileDraft, setProfileDraft] = useState(null);
@@ -270,6 +283,29 @@ export default function AdminPortal({ onBack }) {
       cancelled = true;
     };
   }, [tab, compareFilters]);
+
+  useEffect(() => {
+    if (tab !== "peak") return undefined;
+    let cancelled = false;
+    setPeakLoading(true);
+    const filters = { ...peakFilters };
+    if (filters.date_from || filters.date_to) {
+      delete filters.days;
+    }
+    fetchAdminPeakHours(filters)
+      .then((data) => {
+        if (!cancelled) setPeakData(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setPeakLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, peakFilters]);
 
   useEffect(() => {
     if (tab !== "ai") return undefined;
@@ -488,6 +524,15 @@ export default function AdminPortal({ onBack }) {
               loading={comparisonLoading}
               filters={compareFilters}
               setFilters={setCompareFilters}
+            />
+          )}
+          {tab === "peak" && (
+            <PeakHoursSection
+              key="peak"
+              peakData={peakData}
+              loading={peakLoading}
+              filters={peakFilters}
+              setFilters={setPeakFilters}
             />
           )}
           {tab === "packages" && (
@@ -853,6 +898,262 @@ function PackagesSection({
           </div>
         )}
       </GlassCard>
+    </motion.div>
+  );
+}
+
+function formatDelta(metric) {
+  if (metric?.delta_pct == null) return "—";
+  const sign = metric.delta_pct > 0 ? "+" : "";
+  return `${sign}${formatNumber(metric.delta_pct, 1)}%`;
+}
+
+function PeakHoursSection({ peakData, loading, filters, setFilters }) {
+  const onFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+  const window = peakData?.peak_window;
+  const hourly = peakData?.hourly || [];
+  const chartHours = hourly.filter((h) => h.tests > 0);
+  const downloadSeries = chartHours.map((h) => h.averages?.download_mbps ?? null);
+  const latencySeries = chartHours.map((h) => h.averages?.ping_ms ?? null);
+  const labels = chartHours.map((h) => h.label);
+  const ispRows = peakData?.breakdowns?.isp || [];
+  const regionRows = peakData?.breakdowns?.region || [];
+  const packageRows = peakData?.breakdowns?.package || [];
+
+  return (
+    <motion.div
+      className="admin-section"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+    >
+      <GlassCard className="iq-panel" delay={0.04}>
+        <PanelHeader
+          title="Peak-hour & congestion patterns"
+          subtitle="Compare busy hours against off-peak baselines — without claiming root cause"
+          action={<Clock size={18} color="var(--muted)" />}
+        />
+        <div className="admin-map-filters">
+          <label className="mon-field">
+            <span>ISP</span>
+            <select value={filters.isp} onChange={(e) => onFilter("isp", e.target.value)}>
+              <option value="">All ISPs</option>
+              {(peakData?.available_isps || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Package</span>
+            <select value={filters.package} onChange={(e) => onFilter("package", e.target.value)}>
+              <option value="">All packages</option>
+              {(peakData?.available_packages || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Region</span>
+            <select value={filters.region} onChange={(e) => onFilter("region", e.target.value)}>
+              <option value="">All regions</option>
+              {(peakData?.available_regions || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Date window</span>
+            <select
+              value={filters.days}
+              disabled={Boolean(filters.date_from || filters.date_to)}
+              onChange={(e) => onFilter("days", Number(e.target.value))}
+            >
+              {DAY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>From date</span>
+            <input
+              type="date"
+              value={filters.date_from}
+              onChange={(e) => onFilter("date_from", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>To date</span>
+            <input
+              type="date"
+              value={filters.date_to}
+              onChange={(e) => onFilter("date_to", e.target.value)}
+            />
+          </label>
+        </div>
+        <p className="admin-map-meta">{peakData?.disclaimer}</p>
+        <p className="admin-map-meta">
+          {peakData?.total_tests ?? 0} tests in filter · grouped by hour, day, ISP, region, package
+        </p>
+      </GlassCard>
+
+      {loading ? (
+        <SkeletonCards count={2} />
+      ) : (
+        <>
+          <GlassCard className="iq-panel" delay={0.06}>
+            <PanelHeader
+              title="Peak performance degradation"
+              subtitle={window?.label || "No peak window detected"}
+            />
+            {window ? (
+              <>
+                <p className="admin-copy">{peakData?.interpretation}</p>
+                <div className="mon-last-grid">
+                  {window.metrics.map((metric) => (
+                    <div key={metric.key}>
+                      <span>{metric.label}</span>
+                      <strong className={metric.degraded ? "off" : "on"}>
+                        {formatDelta(metric)}
+                        {" · "}
+                        peak {formatNumber(metric.peak_avg, metric.unit === "%" ? 2 : 1)}
+                        {metric.unit === "/100" ? "" : ` ${metric.unit}`}
+                        {" / off-peak "}
+                        {formatNumber(metric.baseline_avg, metric.unit === "%" ? 2 : 1)}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+                <p className="admin-map-meta">
+                  Peak n={window.tests} · Off-peak n={window.baseline_tests} · score{" "}
+                  {formatNumber(window.degradation_score, 3)}
+                </p>
+              </>
+            ) : (
+              <EmptyHint>{peakData?.interpretation || "Not enough hourly samples yet."}</EmptyHint>
+            )}
+          </GlassCard>
+
+          <GlassCard className="iq-panel" delay={0.08}>
+            <PanelHeader title="Hourly profile" subtitle="Download and latency by UTC hour" />
+            {chartHours.length === 0 ? (
+              <EmptyHint>No hourly samples in this filter.</EmptyHint>
+            ) : (
+              <div className="admin-chart admin-chart-wide">
+                <AdminLineChart
+                  labels={labels}
+                  yTitle="Mbps / ms"
+                  datasets={[
+                    metricDataset("Download (Mbps)", downloadSeries, ADMIN_PALETTE[0], {
+                      line: true,
+                      fill: true,
+                    }),
+                    metricDataset("Latency (ms)", latencySeries, ADMIN_PALETTE[5], {
+                      line: true,
+                    }),
+                  ]}
+                />
+              </div>
+            )}
+          </GlassCard>
+
+          <GlassCard className="iq-panel" delay={0.1}>
+            <PanelHeader
+              title="By day of week"
+              subtitle="Peak-window vs off-peak within each weekday"
+            />
+            {(peakData?.by_day_of_week || []).length === 0 ? (
+              <EmptyHint>No weekday breakdown.</EmptyHint>
+            ) : (
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Day</th>
+                      <th>Tests</th>
+                      <th>Peak n</th>
+                      <th>Degradation</th>
+                      <th>Download Δ</th>
+                      <th>Latency Δ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(peakData?.by_day_of_week || []).map((row) => {
+                      const metrics = Object.fromEntries(row.metrics.map((m) => [m.key, m]));
+                      return (
+                        <tr key={row.key}>
+                          <td>{row.label}</td>
+                          <td>{row.tests}</td>
+                          <td>{row.peak_tests}</td>
+                          <td>{formatNumber(row.degradation_score, 3)}</td>
+                          <td className={metrics.download_mbps?.degraded ? "off" : ""}>
+                            {formatDelta(metrics.download_mbps)}
+                          </td>
+                          <td className={metrics.ping_ms?.degraded ? "off" : ""}>
+                            {formatDelta(metrics.ping_ms)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </GlassCard>
+
+          {[
+            ["ISP breakdown", ispRows],
+            ["Region breakdown", regionRows],
+            ["Package breakdown", packageRows],
+          ].map(([title, rows]) => (
+            <GlassCard key={title} className="iq-panel compact" delay={0.12}>
+              <PanelHeader title={title} subtitle="Relative to each group's own off-peak hours" />
+              {rows.length === 0 ? (
+                <EmptyHint>No groups in filter.</EmptyHint>
+              ) : (
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Group</th>
+                        <th>Tests</th>
+                        <th>Peak n</th>
+                        <th>Download Δ</th>
+                        <th>Upload Δ</th>
+                        <th>Latency Δ</th>
+                        <th>Loss Δ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.slice(0, 12).map((row) => {
+                        const metrics = Object.fromEntries(row.metrics.map((m) => [m.key, m]));
+                        return (
+                          <tr key={`${title}-${row.key}`}>
+                            <td>{row.label}</td>
+                            <td>{row.tests}</td>
+                            <td>{row.peak_tests}</td>
+                            <td>{formatDelta(metrics.download_mbps)}</td>
+                            <td>{formatDelta(metrics.upload_mbps)}</td>
+                            <td>{formatDelta(metrics.ping_ms)}</td>
+                            <td>{formatDelta(metrics.packet_loss_pct)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </GlassCard>
+          ))}
+        </>
+      )}
     </motion.div>
   );
 }

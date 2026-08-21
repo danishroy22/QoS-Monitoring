@@ -226,6 +226,16 @@ export function fetchAdminComparison(filters = {}) {
   return request(`/admin/comparison${qs ? `?${qs}` : ""}`);
 }
 
+export function fetchAdminPeakHours(filters = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    params.set(key, String(value));
+  });
+  const qs = params.toString();
+  return request(`/admin/peak-hours${qs ? `?${qs}` : ""}`);
+}
+
 export function fetchAdminBenchmarks(days = 90, profileId = null) {
   const params = new URLSearchParams({ days: String(days) });
   if (profileId) params.set("profile_id", profileId);
