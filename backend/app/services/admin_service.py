@@ -32,6 +32,8 @@ from app.schemas.admin import (
     IspBenchmarkRow,
     IspMetricRow,
     MetricCompliance,
+    PackagePerformanceResponse,
+    PackagePerformanceRow,
     QosBucket,
 )
 from measurement.qos_analysis import rating_from_score
@@ -190,7 +192,12 @@ def get_dashboard(db: Session, *, days: int | None = 90) -> AdminDashboardRespon
     kpis = AdminKpis(
         total_tests=len(rows),
         isp_count=len(leaderboard),
-        region_count=len({region_from_label(r.server_label) for r in rows}),
+        region_count=len(
+            {
+                (r.detected_region or "").strip() or region_from_label(r.server_label)
+                for r in rows
+            }
+        ),
         tests_24h=tests_24h,
         avg_qos_score=_mean(r.overall_score for r in rows),
         avg_download_mbps=_mean(r.download_mbps for r in rows),
@@ -406,8 +413,11 @@ def get_benchmarks(
     )
 
 
-def _period_key(stamp: datetime, granularity: str) -> str:
+def _period_key(stamp: datetime, granularity: str, *, hour_utc: int | None = None) -> str:
     stamp = _aware(stamp) or _utcnow()
+    if granularity == "hourly":
+        hour = hour_utc if hour_utc is not None else stamp.hour
+        return f"{int(hour) % 24:02d}:00"
     if granularity == "weekly":
         iso = stamp.isocalendar()
         return f"{iso.year}-W{iso.week:02d}"
@@ -417,14 +427,20 @@ def _period_key(stamp: datetime, granularity: str) -> str:
 
 
 def get_history(db: Session, *, granularity: str = "daily", days: int | None = 90) -> HistoryAnalyticsResponse:
-    if granularity not in {"daily", "weekly", "monthly"}:
+    if granularity not in {"hourly", "daily", "weekly", "monthly"}:
         granularity = "daily"
     rows = _load_rows(db, days=days)
     buckets: dict[str, list[SpeedTestResult]] = defaultdict(list)
     for row in rows:
-        buckets[_period_key(row.timestamp, granularity)].append(row)
+        buckets[
+            _period_key(row.timestamp, granularity, hour_utc=row.hour_utc)
+        ].append(row)
+    if granularity == "hourly":
+        ordered = [f"{h:02d}:00" for h in range(24) if f"{h:02d}:00" in buckets]
+    else:
+        ordered = sorted(buckets)
     points = []
-    for period in sorted(buckets):
+    for period in ordered:
         items = buckets[period]
         points.append(
             HistoryPoint(
@@ -441,6 +457,47 @@ def get_history(db: Session, *, granularity: str = "daily", days: int | None = 9
     return HistoryAnalyticsResponse(
         granularity=granularity,  # type: ignore[arg-type]
         points=points,
+        generated_at=_utcnow(),
+    )
+
+
+def get_package_performance(
+    db: Session, *, days: int | None = 90
+) -> PackagePerformanceResponse:
+    """Advertised vs measured package performance (Phase 9)."""
+    rows = _load_rows(db, days=days)
+    grouped: dict[tuple[str, str], list[SpeedTestResult]] = defaultdict(list)
+    for row in rows:
+        package = (row.internet_package or "").strip()
+        if not package:
+            continue
+        grouped[(normalize_isp(row.isp_name), package)].append(row)
+
+    packages: list[PackagePerformanceRow] = []
+    for (isp, package), items in grouped.items():
+        packages.append(
+            PackagePerformanceRow(
+                isp=isp,
+                package=package,
+                tests=len(items),
+                advertised_download_mbps=_mean(r.advertised_download_mbps for r in items),
+                advertised_upload_mbps=_mean(r.advertised_upload_mbps for r in items),
+                avg_download_mbps=_mean(r.download_mbps for r in items),
+                avg_upload_mbps=_mean(r.upload_mbps for r in items),
+                avg_download_fulfilment_pct=_mean(r.download_fulfilment_pct for r in items),
+                avg_upload_fulfilment_pct=_mean(r.upload_fulfilment_pct for r in items),
+                avg_qos_score=_mean(r.overall_score for r in items),
+            )
+        )
+    packages.sort(
+        key=lambda r: (
+            -(r.avg_download_fulfilment_pct if r.avg_download_fulfilment_pct is not None else -1),
+            -r.tests,
+        )
+    )
+    return PackagePerformanceResponse(
+        packages=packages,
+        total_tests_with_package=sum(p.tests for p in packages),
         generated_at=_utcnow(),
     )
 

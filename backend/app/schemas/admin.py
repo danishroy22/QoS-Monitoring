@@ -144,7 +144,7 @@ class HistoryPoint(BaseModel):
 
 
 class HistoryAnalyticsResponse(BaseModel):
-    granularity: Literal["daily", "weekly", "monthly"]
+    granularity: Literal["hourly", "daily", "weekly", "monthly"]
     points: list[HistoryPoint]
     generated_at: datetime
 
@@ -161,6 +161,29 @@ class HeatmapCell(BaseModel):
 class HeatmapResponse(BaseModel):
     cells: list[HeatmapCell]
     generated_at: datetime
+
+
+class PackagePerformanceRow(BaseModel):
+    isp: str
+    package: str
+    tests: int
+    advertised_download_mbps: float | None = None
+    advertised_upload_mbps: float | None = None
+    avg_download_mbps: float | None = None
+    avg_upload_mbps: float | None = None
+    avg_download_fulfilment_pct: float | None = None
+    avg_upload_fulfilment_pct: float | None = None
+    avg_qos_score: float | None = None
+
+
+class PackagePerformanceResponse(BaseModel):
+    packages: list[PackagePerformanceRow]
+    total_tests_with_package: int = 0
+    note: str = (
+        "Advertised vs measured performance uses stored fulfilment fields when present. "
+        "Packages without measurements are omitted."
+    )
+    generated_at: datetime | str
 
 
 class MapLegendBand(BaseModel):

@@ -30,6 +30,7 @@ import {
   fetchAdminHistory,
   fetchAdminIspAnalytics,
   fetchAdminPackages,
+  fetchAdminPackagePerformance,
   fetchAdminPeakHours,
   createAdminPackage,
   updateAdminPackage,
@@ -51,7 +52,7 @@ const TABS = [
   { id: "peak", label: "Peak Hours" },
   { id: "packages", label: "Packages" },
   { id: "benchmarks", label: "Benchmarks" },
-  { id: "history", label: "History" },
+  { id: "history", label: "Time" },
   { id: "map", label: "QoS Map" },
   { id: "ai", label: "AI Analysis" },
 ];
@@ -180,6 +181,7 @@ export default function AdminPortal({ onBack }) {
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [packages, setPackages] = useState([]);
+  const [packagePerformance, setPackagePerformance] = useState(null);
   const [packageForm, setPackageForm] = useState(EMPTY_PACKAGE_FORM);
   const [editingPackageId, setEditingPackageId] = useState(null);
   const [savingPackage, setSavingPackage] = useState(false);
@@ -188,11 +190,12 @@ export default function AdminPortal({ onBack }) {
     setLoading(true);
     setError(null);
     try {
-      const [dash, isp, bench, heat] = await Promise.all([
+      const [dash, isp, bench, heat, pkgPerf] = await Promise.all([
         fetchAdminDashboard(days),
         fetchAdminIspAnalytics(days),
         fetchAdminBenchmarks(days),
         fetchAdminHeatmap(days),
+        fetchAdminPackagePerformance(days),
       ]);
       setDashboard(dash);
       setIspData(isp);
@@ -201,6 +204,7 @@ export default function AdminPortal({ onBack }) {
       setSelectedProfileId(bench.active_profile_id || bench.profile_detail?.id || "");
       setProfileDetailDraft(bench.profile_detail || null);
       setHeatmap(heat);
+      setPackagePerformance(pkgPerf);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -512,7 +516,12 @@ export default function AdminPortal({ onBack }) {
       ) : (
         <AnimatePresence mode="wait">
           {tab === "overview" && (
-            <OverviewSection key="overview" dashboard={dashboard} />
+            <OverviewSection
+              key="overview"
+              dashboard={dashboard}
+              heatmap={heatmap}
+              packagePerformance={packagePerformance}
+            />
           )}
           {tab === "isp" && (
             <IspSection key="isp" isps={isps} labels={labels} />
@@ -539,6 +548,7 @@ export default function AdminPortal({ onBack }) {
             <PackagesSection
               key="packages"
               packages={packages}
+              packagePerformance={packagePerformance}
               form={packageForm}
               setForm={setPackageForm}
               editingId={editingPackageId}
@@ -592,11 +602,13 @@ export default function AdminPortal({ onBack }) {
   );
 }
 
-function OverviewSection({ dashboard }) {
+function OverviewSection({ dashboard, heatmap, packagePerformance }) {
   const kpis = dashboard?.kpis;
   const live = dashboard?.live;
   const leaderboard = dashboard?.leaderboard || [];
   const overview = dashboard?.qos_overview || [];
+  const regions = (heatmap?.cells || []).filter((c) => c.tests > 0);
+  const pkgRows = packagePerformance?.packages || [];
 
   return (
     <motion.div
@@ -605,16 +617,24 @@ function OverviewSection({ dashboard }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
     >
+      <GlassCard className="iq-panel" delay={0.02}>
+        <PanelHeader
+          title="Overall Mauritius QoS"
+          subtitle="Aggregated from stored speed_tests for the selected window"
+        />
+      </GlassCard>
+
       <div className="admin-kpi-grid">
         <KpiCard label="Total tests" value={kpis?.total_tests ?? 0} icon={Activity} accent="download" delay={0.04} />
-        <KpiCard label="ISPs observed" value={kpis?.isp_count ?? 0} icon={Wifi} accent="upload" delay={0.06} />
+        <KpiCard label="ISPs" value={kpis?.isp_count ?? 0} icon={Wifi} accent="upload" delay={0.05} />
+        <KpiCard label="Regions" value={kpis?.region_count ?? 0} icon={MapPinned} accent="primary" delay={0.06} />
         <KpiCard
-          label="Mean QoS"
+          label="Overall QoS"
           value={kpis?.avg_qos_score != null ? formatNumber(kpis.avg_qos_score, 0) : "—"}
           unit="/100"
           icon={Gauge}
           accent="primary"
-          delay={0.08}
+          delay={0.07}
         />
         <KpiCard
           label="Avg download"
@@ -622,7 +642,15 @@ function OverviewSection({ dashboard }) {
           unit="Mbps"
           icon={ArrowDownToLine}
           accent="download"
-          delay={0.1}
+          delay={0.08}
+        />
+        <KpiCard
+          label="Avg upload"
+          value={kpis?.avg_upload_mbps != null ? formatNumber(kpis.avg_upload_mbps, 1) : "—"}
+          unit="Mbps"
+          icon={ArrowUpFromLine}
+          accent="upload"
+          delay={0.09}
         />
         <KpiCard
           label="Avg ping"
@@ -630,14 +658,30 @@ function OverviewSection({ dashboard }) {
           unit="ms"
           icon={Zap}
           accent="ping"
+          delay={0.1}
+        />
+        <KpiCard
+          label="Avg jitter"
+          value={kpis?.avg_jitter_ms != null ? formatNumber(kpis.avg_jitter_ms, 1) : "—"}
+          unit="ms"
+          icon={Radio}
+          accent="jitter"
+          delay={0.11}
+        />
+        <KpiCard
+          label="Avg packet loss"
+          value={kpis?.avg_packet_loss_pct != null ? formatNumber(kpis.avg_packet_loss_pct, 2) : "—"}
+          unit="%"
+          icon={Activity}
+          accent="ping"
           delay={0.12}
         />
         <KpiCard
           label="Tests (24h)"
           value={kpis?.tests_24h ?? 0}
-          icon={Radio}
+          icon={Clock}
           accent="jitter"
-          delay={0.14}
+          delay={0.13}
         />
       </div>
 
@@ -714,7 +758,7 @@ function OverviewSection({ dashboard }) {
       <GlassCard className="iq-panel" delay={0.12}>
         <PanelHeader
           title="ISP leaderboard"
-          subtitle="Ranked by mean QoS score from speed_tests"
+          subtitle="QoS score · download · upload · latency · packet loss · tests"
           action={<Trophy size={18} color="var(--muted)" />}
         />
         {leaderboard.length === 0 ? (
@@ -726,13 +770,12 @@ function OverviewSection({ dashboard }) {
                 <tr>
                   <th>#</th>
                   <th>ISP</th>
-                  <th>Tests</th>
                   <th>QoS</th>
                   <th>Download</th>
                   <th>Upload</th>
-                  <th>Ping</th>
-                  <th>Jitter</th>
-                  <th>Loss</th>
+                  <th>Latency</th>
+                  <th>Packet Loss</th>
+                  <th>Tests</th>
                 </tr>
               </thead>
               <tbody>
@@ -740,15 +783,103 @@ function OverviewSection({ dashboard }) {
                   <tr key={row.isp}>
                     <td>{row.rank}</td>
                     <td>{row.isp}</td>
-                    <td>{row.tests}</td>
                     <td className={ratingClass(row.latest_rating)}>
                       {row.avg_qos_score != null ? formatNumber(row.avg_qos_score, 0) : "—"}
                     </td>
                     <td>{formatNumber(row.avg_download_mbps, 1)}</td>
                     <td>{formatNumber(row.avg_upload_mbps, 1)}</td>
                     <td>{formatNumber(row.avg_ping_ms, 0)}</td>
-                    <td>{formatNumber(row.avg_jitter_ms, 1)}</td>
                     <td>{formatNumber(row.avg_packet_loss_pct, 2)}</td>
+                    <td>{row.tests}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </GlassCard>
+
+      <GlassCard className="iq-panel" delay={0.14}>
+        <PanelHeader
+          title="Regional performance"
+          subtitle="Compact view — open QoS Map for the full Mauritius GeoJSON map"
+          action={<MapPinned size={18} color="var(--muted)" />}
+        />
+        {regions.length === 0 ? (
+          <EmptyHint>No regional samples yet.</EmptyHint>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Region</th>
+                  <th>Tests</th>
+                  <th>QoS</th>
+                  <th>Download</th>
+                  <th>Ping</th>
+                </tr>
+              </thead>
+              <tbody>
+                {regions.map((cell) => (
+                  <tr key={cell.region}>
+                    <td>{cell.region}</td>
+                    <td>{cell.tests}</td>
+                    <td className={ratingClass(cell.rating)}>
+                      {cell.avg_qos_score != null ? formatNumber(cell.avg_qos_score, 0) : "—"}
+                    </td>
+                    <td>{formatNumber(cell.avg_download_mbps, 1)}</td>
+                    <td>{formatNumber(cell.avg_ping_ms, 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </GlassCard>
+
+      <GlassCard className="iq-panel" delay={0.16}>
+        <PanelHeader
+          title="Package performance"
+          subtitle="Advertised vs measured (fulfilment %) — manage packages in the Packages tab"
+        />
+        {pkgRows.length === 0 ? (
+          <EmptyHint>No tests with package labels yet. Configure packages and re-run tests.</EmptyHint>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>ISP</th>
+                  <th>Package</th>
+                  <th>Adv. ↓</th>
+                  <th>Meas. ↓</th>
+                  <th>↓ Fulfilment</th>
+                  <th>Adv. ↑</th>
+                  <th>Meas. ↑</th>
+                  <th>↑ Fulfilment</th>
+                  <th>Tests</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pkgRows.slice(0, 12).map((row) => (
+                  <tr key={`${row.isp}-${row.package}`}>
+                    <td>{row.isp}</td>
+                    <td>{row.package}</td>
+                    <td>{formatNumber(row.advertised_download_mbps, 0)}</td>
+                    <td>{formatNumber(row.avg_download_mbps, 1)}</td>
+                    <td>
+                      {row.avg_download_fulfilment_pct != null
+                        ? `${formatNumber(row.avg_download_fulfilment_pct, 0)}%`
+                        : "—"}
+                    </td>
+                    <td>{formatNumber(row.advertised_upload_mbps, 0)}</td>
+                    <td>{formatNumber(row.avg_upload_mbps, 1)}</td>
+                    <td>
+                      {row.avg_upload_fulfilment_pct != null
+                        ? `${formatNumber(row.avg_upload_fulfilment_pct, 0)}%`
+                        : "—"}
+                    </td>
+                    <td>{row.tests}</td>
                   </tr>
                 ))}
               </tbody>
@@ -762,6 +893,7 @@ function OverviewSection({ dashboard }) {
 
 function PackagesSection({
   packages,
+  packagePerformance,
   form,
   setForm,
   editingId,
@@ -774,6 +906,7 @@ function PackagesSection({
   const onField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+  const perfRows = packagePerformance?.packages || [];
 
   return (
     <motion.div
@@ -782,6 +915,62 @@ function PackagesSection({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
     >
+      <GlassCard className="iq-panel" delay={0.02}>
+        <PanelHeader
+          title="Advertised vs measured"
+          subtitle={
+            packagePerformance?.note ||
+            "Compare configured package rates with stored measurement fulfilment"
+          }
+        />
+        {perfRows.length === 0 ? (
+          <EmptyHint>No packaged measurements in this window yet.</EmptyHint>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>ISP</th>
+                  <th>Package</th>
+                  <th>Adv. ↓</th>
+                  <th>Meas. ↓</th>
+                  <th>↓ %</th>
+                  <th>Adv. ↑</th>
+                  <th>Meas. ↑</th>
+                  <th>↑ %</th>
+                  <th>QoS</th>
+                  <th>n</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perfRows.map((row) => (
+                  <tr key={`perf-${row.isp}-${row.package}`}>
+                    <td>{row.isp}</td>
+                    <td>{row.package}</td>
+                    <td>{formatNumber(row.advertised_download_mbps, 0)}</td>
+                    <td>{formatNumber(row.avg_download_mbps, 1)}</td>
+                    <td>
+                      {row.avg_download_fulfilment_pct != null
+                        ? `${formatNumber(row.avg_download_fulfilment_pct, 0)}%`
+                        : "—"}
+                    </td>
+                    <td>{formatNumber(row.advertised_upload_mbps, 0)}</td>
+                    <td>{formatNumber(row.avg_upload_mbps, 1)}</td>
+                    <td>
+                      {row.avg_upload_fulfilment_pct != null
+                        ? `${formatNumber(row.avg_upload_fulfilment_pct, 0)}%`
+                        : "—"}
+                    </td>
+                    <td>{formatNumber(row.avg_qos_score, 0)}</td>
+                    <td>{row.tests}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </GlassCard>
+
       <GlassCard className="iq-panel" delay={0.04}>
         <PanelHeader
           title={editingId ? "Edit internet package" : "Add internet package"}
@@ -1679,11 +1868,15 @@ function HistorySection({ history, granularity, setGranularity }) {
     >
       <GlassCard className="iq-panel" hover={false}>
         <PanelHeader
-          title="Historical analytics"
-          subtitle="Daily, weekly and monthly averages from stored tests"
+          title="Time analysis"
+          subtitle={
+            granularity === "hourly"
+              ? "UTC hour-of-day averages across the selected window"
+              : "Daily, weekly and monthly averages from stored tests"
+          }
           action={
             <div className="admin-tabs compact">
-              {["daily", "weekly", "monthly"].map((item) => (
+              {["hourly", "daily", "weekly", "monthly"].map((item) => (
                 <button
                   key={item}
                   type="button"

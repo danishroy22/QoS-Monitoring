@@ -24,6 +24,7 @@ from app.schemas.admin import (
     HistoryAnalyticsResponse,
     IspAnalyticsResponse,
     IspComparisonResponse,
+    PackagePerformanceResponse,
     PeakHourResponse,
     QosMapResponse,
 )
@@ -228,12 +229,21 @@ def admin_update_benchmark_profile(
 
 @router.get("/history", response_model=HistoryAnalyticsResponse)
 def admin_history(
-    granularity: Literal["daily", "weekly", "monthly"] = Query(default="daily"),
+    granularity: Literal["hourly", "daily", "weekly", "monthly"] = Query(default="daily"),
     days: int | None = Query(default=90, ge=1, le=3650),
     db: Session = Depends(get_db),
 ) -> HistoryAnalyticsResponse:
-    """Daily, weekly, or monthly trend aggregates."""
+    """Hourly (UTC hour-of-day), daily, weekly, or monthly trend aggregates."""
     return admin_service.get_history(db, granularity=granularity, days=days)
+
+
+@router.get("/package-performance", response_model=PackagePerformanceResponse)
+def admin_package_performance(
+    days: int | None = Query(default=90, ge=1, le=3650),
+    db: Session = Depends(get_db),
+) -> PackagePerformanceResponse:
+    """Advertised vs measured package performance (Phase 9)."""
+    return admin_service.get_package_performance(db, days=days)
 
 
 @router.get("/heatmap", response_model=HeatmapResponse)

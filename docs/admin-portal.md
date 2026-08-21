@@ -15,7 +15,8 @@ APIs and the GO / speedometer experience are unchanged.
 | PUT | `/admin/benchmark-profiles/active` | Select active profile |
 | PUT | `/admin/benchmark-profiles/{id}` | Update profile + metric documentation |
 | GET | `/admin/peak-hours` | Peak-hour vs off-peak degradation (Phase 8) |
-| GET | `/admin/history` | `granularity=daily\|weekly\|monthly` |
+| GET | `/admin/package-performance` | Advertised vs measured packages (Phase 9) |
+| GET | `/admin/history` | `granularity=hourly\|daily\|weekly\|monthly` |
 | GET | `/admin/heatmap` | Aggregate by Mauritius region |
 | GET | `/admin/ai/isp-analysis` | Natural-language ISP summaries |
 | GET | `/admin/report` | Professional QoS PDF |

@@ -25,8 +25,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.db.session import active_database_url, _redact_url
+
     settings = get_settings()
-    logger.info("Initialising database (%s)", settings.database_url)
+    logger.info("Initialising database (%s)", _redact_url(active_database_url))
     init_db(seed=settings.seed_nodes)
     start_scheduler()
     yield

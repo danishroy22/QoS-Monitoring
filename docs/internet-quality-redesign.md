@@ -115,6 +115,16 @@ package). Wording stays cautious — does not claim confirmed congestion.
 - `GET /admin/peak-hours`
 - Docs: `docs/phase8-peak-hours.md`
 
+## Supervisor Phase 9 — Administrator Dashboard
+
+Overall Mauritius QoS KPIs, ISP leaderboard, regional summary, hourly→monthly
+time analysis, and advertised vs measured package performance.
+
+- `GET /admin/dashboard`
+- `GET /admin/history?granularity=hourly|daily|weekly|monthly`
+- `GET /admin/package-performance`
+- Docs: `docs/phase9-admin-dashboard.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

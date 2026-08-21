@@ -272,6 +272,10 @@ export function fetchAdminHistory(granularity = "daily", days = 90) {
   return request(`/admin/history?granularity=${encodeURIComponent(granularity)}&days=${days}`);
 }
 
+export function fetchAdminPackagePerformance(days = 90) {
+  return request(`/admin/package-performance?days=${days}`);
+}
+
 export function fetchAdminHeatmap(days = 90) {
   return request(`/admin/heatmap?days=${days}`);
 }
