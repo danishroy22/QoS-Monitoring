@@ -12,6 +12,18 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 PROJECT_ROOT = BACKEND_DIR.parent
 
 
+def _normalize_db_url(url: str) -> str:
+    """Ensure SQLAlchemy uses the psycopg v3 driver for Postgres URLs."""
+    raw = (url or "").strip()
+    if raw.startswith("postgresql+psycopg://"):
+        return raw
+    if raw.startswith("postgres://"):
+        return "postgresql+psycopg://" + raw[len("postgres://") :]
+    if raw.startswith("postgresql://"):
+        return "postgresql+psycopg://" + raw[len("postgresql://") :]
+    return raw
+
+
 class Settings(BaseSettings):
     """Runtime configuration for the backend service."""
 
@@ -49,8 +61,8 @@ class Settings(BaseSettings):
         """Prefer Supabase connection string when configured."""
         supabase = (self.supabase_db_url or "").strip()
         if supabase:
-            return supabase
-        return self.database_url
+            return _normalize_db_url(supabase)
+        return _normalize_db_url(self.database_url)
 
     @property
     def cors_origin_list(self) -> list[str]:
