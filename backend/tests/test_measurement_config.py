@@ -1,4 +1,4 @@
-"""Tests for documented measurement parameters (Phase 2)."""
+"""Tests for documented measurement parameters."""
 
 from __future__ import annotations
 
@@ -15,33 +15,46 @@ REQUIRED_KEYS = (
     "latency_packet_size",
     "latency_packet_count",
     "latency_timeout",
-    "download_duration",
-    "upload_duration",
-    "download_connections",
-    "upload_connections",
-    "warmup_duration",
-    "measurement_interval",
+    "download_pass_bytes",
+    "download_passes",
+    "upload_total_bytes",
+    "download_chunk_bytes",
+    "upload_chunk_bytes",
 )
 
 
 def test_config_profiles_include_required_keys():
     cfg = load_measurement_config()
     assert cfg["version"]
-    assert cfg["throughput_mode"] == "duration"
+    assert cfg["throughput_mode"] == "bytes"
     for name in ("full", "quick"):
         block = cfg[name]
         for key in REQUIRED_KEYS:
             assert key in block, key
-        assert block["download_connections"] >= 1
-        assert block["upload_connections"] >= 1
+        assert block["download_passes"] >= 1
+        assert block["download_pass_bytes"] > 0
+        assert block["upload_total_bytes"] > 0
+
+
+def test_restored_pre_methodology_byte_budgets():
+    full = profile(False)
+    quick = profile(True)
+    assert full["download_pass_bytes"] == 25_000_000
+    assert full["download_passes"] == 2
+    assert full["upload_total_bytes"] == 20_000_000
+    assert full["latency_packet_count"] == 12
+    assert quick["download_pass_bytes"] == 3_000_000
+    assert quick["download_passes"] == 1
+    assert quick["upload_total_bytes"] == 2_000_000
+    assert quick["latency_packet_count"] == 4
 
 
 def test_public_methodology_is_safe_snapshot():
     snap = public_methodology()
     assert snap["version"] == load_measurement_config()["version"]
     assert "throughput_mbps" in snap["formulas"]
-    assert snap["full"]["download_duration"] == profile(False)["download_duration"]
-    assert snap["quick"]["download_duration"] == profile(True)["download_duration"]
+    assert snap["full"]["download_pass_bytes"] == profile(False)["download_pass_bytes"]
+    assert snap["quick"]["download_pass_bytes"] == profile(True)["download_pass_bytes"]
 
 
 def test_throughput_mbps_duration_formula():

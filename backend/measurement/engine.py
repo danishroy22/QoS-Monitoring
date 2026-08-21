@@ -13,17 +13,15 @@ import re
 import socket
 import ssl
 import statistics
-import threading
 import time
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout, as_completed
 from typing import Any
 from urllib.parse import urlparse
 
-from measurement.config import load_version, profile as measurement_profile, rtt_stats, throughput_mbps
+from measurement.config import load_version, profile as measurement_profile, rtt_stats
 from measurement.servers import get_server
 
 logger = logging.getLogger(__name__)
@@ -248,13 +246,27 @@ def measure_download_speed_multi(
     *,
     bytes_per_pass: int | None = None,
     passes: int | None = None,
-    download_base_url: str | None = None,
+    download_base_url: str = "https://speed.cloudflare.com/__down",
     server_id: str | None = None,
     quick: bool = False,
 ) -> float:
-    """Average throughput from the duration-window downloader."""
-    del bytes_per_pass, passes, download_base_url
-    for event in iter_download_progress(server_id=server_id, quick=quick):
+    """Average throughput across multiple large download passes."""
+    params = measurement_profile(quick)
+    bytes_per_pass = int(
+        bytes_per_pass
+        if bytes_per_pass is not None
+        else params.get("download_pass_bytes", DOWNLOAD_PASS_BYTES_FULL)
+    )
+    passes = int(
+        passes if passes is not None else params.get("download_passes", DOWNLOAD_PASSES_FULL)
+    )
+    for event in iter_download_progress(
+        bytes_per_pass=bytes_per_pass,
+        passes=passes,
+        download_base_url=download_base_url,
+        server_id=server_id,
+        quick=quick,
+    ):
         if event.get("done") and event.get("download_mbps") is not None:
             return float(event["download_mbps"])
         if event.get("done") and event.get("mbps") is not None:
@@ -272,25 +284,6 @@ def _download_url_for_pass(server: dict[str, Any], pass_idx: int, bytes_per_pass
     return urls[pass_idx % len(urls)]
 
 
-class _ByteMeter:
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self.total = 0
-        self.warmup_total = 0
-
-    def add(self, n: int) -> None:
-        with self._lock:
-            self.total += n
-
-    def snapshot(self) -> int:
-        with self._lock:
-            return self.total
-
-    def mark_warmup(self) -> None:
-        with self._lock:
-            self.warmup_total = self.total
-
-
 def iter_download_progress(
     *,
     bytes_per_pass: int | None = None,
@@ -299,98 +292,74 @@ def iter_download_progress(
     server_id: str | None = None,
     quick: bool = False,
 ):
-    """Yield live download Mbps, then a final duration-window result.
-
-    Extra kwargs `bytes_per_pass` / `passes` are ignored in duration mode and
-    kept so older callers do not break.
-    """
-    del bytes_per_pass, passes, download_base_url
+    """Yield live download Mbps updates, then a final averaged result (byte-pass mode)."""
     params = measurement_profile(quick)
+    bytes_per_pass = int(
+        bytes_per_pass
+        if bytes_per_pass is not None
+        else params.get("download_pass_bytes", DOWNLOAD_PASS_BYTES_FULL if not quick else DOWNLOAD_PASS_BYTES_QUICK)
+    )
+    passes = int(
+        passes
+        if passes is not None
+        else params.get("download_passes", DOWNLOAD_PASSES_FULL if not quick else DOWNLOAD_PASSES_QUICK)
+    )
+    chunk = int(params.get("download_chunk_bytes", DOWNLOAD_CHUNK_BYTES))
+    timeout = float(params.get("timeout", 120.0))
     server = get_server(server_id)
-    duration = float(params["download_duration"])
-    warmup = float(params["warmup_duration"])
-    interval = float(params["measurement_interval"])
-    connections = max(1, int(params["download_connections"]))
-    chunk = int(params["download_chunk_bytes"])
-    timeout = float(params["timeout"])
-    retries = max(0, int(params["retry_count"]))
-    request_bytes = 200_000_000
-    url = _download_url_for_pass(server, 0, request_bytes)
-    meter = _ByteMeter()
+    if server.get("download_mode") == "bytes" and download_base_url:
+        server = {**server, "download_base_url": download_base_url}
+
+    pass_speeds: list[float] = []
     errors: list[str] = []
-    peak = 0.0
-    stop_flag = threading.Event()
+    total_transferred = 0
+    started_all = time.perf_counter()
 
-    def worker() -> None:
-        attempts = 0
-        while not stop_flag.is_set():
-            try:
-                request = urllib.request.Request(
-                    url, headers={"User-Agent": "FYP-InternetQuality/1.0"}
-                )
-                with urllib.request.urlopen(request, timeout=min(timeout, 4.0)) as response:
-                    while not stop_flag.is_set():
-                        piece = response.read(chunk)
-                        if not piece:
-                            break
-                        meter.add(len(piece))
-                attempts = 0
-            except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
-                attempts += 1
-                errors.append(f"download: {exc}")
-                if attempts > retries:
-                    time.sleep(0.15)
-
-    started = time.perf_counter()
-    warmup_end = started + warmup
-    measure_end = warmup_end + duration
-    with ThreadPoolExecutor(max_workers=connections) as pool:
-        futures = [pool.submit(worker) for _ in range(connections)]
-        last_emit = started
-        warmup_marked = False
-        while time.perf_counter() < measure_end:
-            now = time.perf_counter()
-            if not warmup_marked and now >= warmup_end:
-                meter.mark_warmup()
-                warmup_marked = True
-            if now - last_emit >= interval:
-                elapsed_meas = max(now - warmup_end, 0.001) if warmup_marked else max(now - started, 0.001)
-                counted = meter.snapshot() - (meter.warmup_total if warmup_marked else 0)
-                current = throughput_mbps(counted, elapsed_meas)
-                if warmup_marked:
-                    peak = max(peak, current)
-                yield {
-                    "phase": "download",
-                    "bytes": meter.snapshot(),
-                    "mbps": round(current, 2),
-                    "done": False,
-                    "server_id": server["id"],
-                }
-                last_emit = now
-            time.sleep(min(0.05, interval / 2))
-        if not warmup_marked:
-            meter.mark_warmup()
-        stop_flag.set()
+    for pass_idx in range(passes):
+        url = _download_url_for_pass(server, pass_idx, bytes_per_pass)
+        request = urllib.request.Request(url, headers={"User-Agent": "FYP-InternetQuality/1.0"})
+        started_pass = time.perf_counter()
+        total_bytes = 0
         try:
-            for fut in as_completed(futures, timeout=3):
-                _ = fut.exception()
-        except FuturesTimeout:
-            pass
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                while total_bytes < bytes_per_pass:
+                    piece = response.read(min(chunk, bytes_per_pass - total_bytes))
+                    if not piece:
+                        break
+                    total_bytes += len(piece)
+                    elapsed = time.perf_counter() - started_pass
+                    current_mbps = (total_bytes * 8 / 1_000_000.0) / max(elapsed, 0.001)
+                    yield {
+                        "phase": "download",
+                        "pass": pass_idx + 1,
+                        "passes": passes,
+                        "bytes": total_bytes,
+                        "mbps": round(current_mbps, 2),
+                        "done": False,
+                        "server_id": server["id"],
+                    }
+            pass_elapsed = time.perf_counter() - started_pass
+            pass_mbps = (total_bytes * 8 / 1_000_000.0) / max(pass_elapsed, 0.001)
+            if total_bytes > 0:
+                pass_speeds.append(pass_mbps)
+                total_transferred += total_bytes
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            errors.append(f"download pass {pass_idx + 1}: {exc}")
+            logger.warning("Download pass failed: %s", exc)
 
-    measured_bytes = max(0, meter.snapshot() - meter.warmup_total)
-    avg = round(throughput_mbps(measured_bytes, duration), 2) if measured_bytes else None
+    final = round(statistics.mean(pass_speeds), 2) if pass_speeds else None
+    duration_s = round(time.perf_counter() - started_all, 3)
     yield {
         "phase": "download",
-        "mbps": avg,
-        "download_mbps": avg,
+        "mbps": final,
+        "download_mbps": final,
         "done": True,
-        "errors": errors[:8],
+        "errors": errors,
         "server_id": server["id"],
-        "bytes_transferred": measured_bytes,
-        "duration_s": duration,
-        "warmup_s": warmup,
-        "connections": connections,
-        "peak_mbps": round(peak, 2) if peak else avg,
+        "bytes_transferred": total_transferred,
+        "duration_s": duration_s,
+        "connections": 1,
+        "peak_mbps": round(max(pass_speeds), 2) if pass_speeds else final,
         "config_version": load_version(),
     }
 
@@ -411,87 +380,61 @@ def iter_upload_progress(
     server_id: str | None = None,
     quick: bool = False,
 ):
-    """Yield live upload Mbps for a configured duration window."""
-    del total_bytes, chunk_bytes
+    """Yield live upload Mbps updates while sending chunked payloads (byte-budget mode)."""
     params = measurement_profile(quick)
+    total_bytes = int(
+        total_bytes
+        if total_bytes is not None
+        else params.get(
+            "upload_total_bytes",
+            UPLOAD_TOTAL_BYTES_FULL if not quick else UPLOAD_TOTAL_BYTES_QUICK,
+        )
+    )
+    chunk_bytes = int(
+        chunk_bytes if chunk_bytes is not None else params.get("upload_chunk_bytes", UPLOAD_CHUNK_BYTES)
+    )
+    timeout = float(params.get("timeout", 120.0))
     server = get_server(server_id)
     target_url = server.get("upload_url") or upload_url or DEFAULT_UPLOAD_URL
-    duration = float(params["upload_duration"])
-    warmup = float(params["warmup_duration"])
-    interval = float(params["measurement_interval"])
-    connections = max(1, int(params["upload_connections"]))
-    chunk = int(params["upload_chunk_bytes"])
-    timeout = float(params["timeout"])
-    retries = max(0, int(params["retry_count"]))
-    meter = _ByteMeter()
     errors: list[str] = []
+    sent = 0
     peak = 0.0
-    stop_flag = threading.Event()
-    payload = b"0" * chunk
-
-    def worker() -> None:
-        attempts = 0
-        while not stop_flag.is_set():
-            try:
-                _http_post(target_url, payload, timeout=min(timeout, 4.0))
-                meter.add(len(payload))
-                attempts = 0
-            except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
-                attempts += 1
-                errors.append(f"upload: {exc}")
-                if attempts > retries:
-                    time.sleep(0.15)
-
     started = time.perf_counter()
-    warmup_end = started + warmup
-    measure_end = warmup_end + duration
-    with ThreadPoolExecutor(max_workers=connections) as pool:
-        futures = [pool.submit(worker) for _ in range(connections)]
-        last_emit = started
-        warmup_marked = False
-        while time.perf_counter() < measure_end:
-            now = time.perf_counter()
-            if not warmup_marked and now >= warmup_end:
-                meter.mark_warmup()
-                warmup_marked = True
-            if now - last_emit >= interval:
-                elapsed_meas = max(now - warmup_end, 0.001) if warmup_marked else max(now - started, 0.001)
-                counted = meter.snapshot() - (meter.warmup_total if warmup_marked else 0)
-                current = throughput_mbps(counted, elapsed_meas)
-                if warmup_marked:
-                    peak = max(peak, current)
-                yield {
-                    "phase": "upload",
-                    "bytes": meter.snapshot(),
-                    "mbps": round(current, 2),
-                    "done": False,
-                    "server_id": server["id"],
-                }
-                last_emit = now
-            time.sleep(min(0.05, interval / 2))
-        if not warmup_marked:
-            meter.mark_warmup()
-        stop_flag.set()
-        try:
-            for fut in as_completed(futures, timeout=3):
-                _ = fut.exception()
-        except FuturesTimeout:
-            pass
+    payload_template = b"0" * chunk_bytes
 
-    measured_bytes = max(0, meter.snapshot() - meter.warmup_total)
-    avg = round(throughput_mbps(measured_bytes, duration), 2) if measured_bytes else None
+    try:
+        while sent < total_bytes:
+            size = min(chunk_bytes, total_bytes - sent)
+            payload = payload_template[:size]
+            _http_post(target_url, payload, timeout=timeout)
+            sent += size
+            elapsed = time.perf_counter() - started
+            current_mbps = (sent * 8 / 1_000_000.0) / max(elapsed, 0.001)
+            peak = max(peak, current_mbps)
+            yield {
+                "phase": "upload",
+                "bytes": sent,
+                "mbps": round(current_mbps, 2),
+                "done": False,
+                "server_id": server["id"],
+            }
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        errors.append(f"upload: {exc}")
+        logger.warning("Upload failed: %s", exc)
+
+    elapsed = time.perf_counter() - started
+    final = round((sent * 8 / 1_000_000.0) / max(elapsed, 0.001), 2) if sent else None
     yield {
         "phase": "upload",
-        "mbps": avg,
-        "upload_mbps": avg,
+        "mbps": final,
+        "upload_mbps": final,
         "done": True,
-        "errors": errors[:8],
+        "errors": errors,
         "server_id": server["id"],
-        "bytes_transferred": measured_bytes,
-        "duration_s": duration,
-        "warmup_s": warmup,
-        "connections": connections,
-        "peak_mbps": round(peak, 2) if peak else avg,
+        "bytes_transferred": sent,
+        "duration_s": round(elapsed, 3),
+        "connections": 1,
+        "peak_mbps": round(peak, 2) if peak else final,
         "config_version": load_version(),
     }
 

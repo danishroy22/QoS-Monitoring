@@ -26,31 +26,29 @@ Parameters live in JSON (`full` and `quick` profiles) and are exposed at
 | `latency_packet_size` | ICMP payload bytes (`ping -l` / `-s`) |
 | `latency_packet_count` | Number of probe packets |
 | `latency_timeout` | Per-probe timeout (seconds) |
-| `download_duration` | Measurement window after warm-up (seconds) |
-| `upload_duration` | Independent uplink window (seconds) |
-| `download_connections` | Parallel GET streams (default **1**) |
-| `upload_connections` | Parallel POST streams (default **1**) |
-| `warmup_duration` | Seconds discarded so TCP slow-start is less dominant |
-| `measurement_interval` | How often live Mbps is sampled (SSE + peak) |
+| `download_pass_bytes` | Bytes requested per download pass |
+| `download_passes` | Number of download passes averaged |
+| `upload_total_bytes` | Total upload payload budget |
+| `download_chunk_bytes` | Streaming read chunk size |
+| `upload_chunk_bytes` | POST body chunk size |
 
-Also recorded: `timeout`, `retry_count`, chunk sizes. Version field:
-`measurement_config_version` (currently `2.0`).
+Also recorded: `timeout`, `retry_count`. Version field:
+`measurement_config_version` (currently `1.0`, byte-pass mode).
 
 ### Throughput
 
-Mode is **duration**, not a fixed byte budget.
+Mode is **bytes** (restored pre–Phase-2 behaviour): fixed byte budgets,
+averaged across download passes — not a timed duration window.
 
 ```text
-throughput_mbps = bytes_after_warmup * 8 / 1e6 / measurement_duration_s
+pass_mbps = bytes_in_pass * 8 / 1e6 / pass_elapsed_s
+download_mbps = mean(pass_mbps)
+upload_mbps = uploaded_bytes * 8 / 1e6 / elapsed_s
 ```
 
-Warm-up bytes are excluded from the average. Peak Mbps is the highest
-interval sample during the measurement window. SSE events still send
-`phase`, `mbps`, and a final `done` payload (plus `bytes_transferred`,
-`duration_s`, `connections`, `peak_mbps`, `config_version`).
-
-Default full windows: **8 s download + 1 s warm-up**, **6 s upload**,
-**1 connection**. Quick profile uses shorter windows.
+Default full profile: **25 MB × 2 download passes**, **20 MB upload**,
+**512 KiB** download chunks, **2 MB** upload chunks. Quick: **3 MB × 1**
+download, **2 MB** upload.
 
 ### Latency
 

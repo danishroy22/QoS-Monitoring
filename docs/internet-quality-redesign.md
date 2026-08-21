@@ -54,9 +54,9 @@ See `docs/server-selection-methodology.md`.
 
 ## Supervisor Phase 2 — Documented measurement methodology
 
-Throughput is duration-windowed (not a fixed byte pass). Parameters live in
-`backend/measurement/measurement_config.json`. Defaults are experimental,
-not claimed optima. See `docs/measurement-methodology.md`.
+Throughput uses restored byte-pass budgets (not a timed duration window). Parameters live in
+`backend/measurement/measurement_config.json`. Full defaults: 25 MB × 2 download,
+20 MB upload; quick: 3 MB × 1 / 2 MB. Latency probe counts remain 12 / 4.
 
 - `GET /speedtest/config`
 

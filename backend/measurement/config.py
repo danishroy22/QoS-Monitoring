@@ -47,7 +47,9 @@ def public_methodology() -> dict[str, Any]:
         "quick": cfg.get("quick"),
         "rationale": cfg.get("rationale"),
         "formulas": {
-            "throughput_mbps": "bytes_after_warmup * 8 / 1e6 / measurement_duration_s",
+            "download_mbps": "mean(bytes_per_pass * 8 / 1e6 / pass_elapsed_s)",
+            "upload_mbps": "uploaded_bytes * 8 / 1e6 / elapsed_s",
+            "throughput_mbps": "bytes * 8 / 1e6 / duration_s",
             "packet_loss_pct": "packets_lost / packets_sent * 100",
             "latency_avg_ms": "mean(successful_rtt_samples)",
             "jitter_ms": "population standard deviation of successful RTT samples (existing QoS input)",
