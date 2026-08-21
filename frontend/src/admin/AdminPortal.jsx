@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   downloadAdminReport,
   fetchAdminAi,
+  askAdminAi,
   fetchAdminBenchmarks,
   setActiveAdminBenchmarkProfile,
   updateAdminBenchmarkProfile,
@@ -595,7 +596,7 @@ export default function AdminPortal({ onBack }) {
               heatmap={heatmap}
             />
           )}
-          {tab === "ai" && <AiSection key="ai" ai={ai} loading={aiLoading} />}
+          {tab === "ai" && <AiSection key="ai" ai={ai} loading={aiLoading} days={days} />}
         </AnimatePresence>
       )}
     </motion.div>
@@ -2209,7 +2210,39 @@ function MapSection({ mapData, loading, filters, setFilters, heatmap }) {
   );
 }
 
-function AiSection({ ai, loading }) {
+function AiSection({ ai, loading, days }) {
+  const [question, setQuestion] = useState("");
+  const [askResult, setAskResult] = useState(null);
+  const [askBusy, setAskBusy] = useState(false);
+  const [askError, setAskError] = useState(null);
+
+  const examples =
+    askResult?.example_questions ||
+    [
+      "Which ISP has the best average latency?",
+      "Which ISP has the best package fulfilment?",
+      "Which regions experience the greatest degradation?",
+      "When does Emtel experience its worst performance?",
+      "How has Mauritius broadband performance changed?",
+      "Which packages consistently underperform?",
+    ];
+
+  const runAsk = async (text) => {
+    const q = (text || question || "").trim();
+    if (q.length < 3) return;
+    setQuestion(q);
+    setAskBusy(true);
+    setAskError(null);
+    try {
+      const data = await askAdminAi(q, days);
+      setAskResult(data);
+    } catch (err) {
+      setAskError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAskBusy(false);
+    }
+  };
+
   if (loading) {
     return <SkeletonCards count={3} />;
   }
@@ -2227,6 +2260,64 @@ function AiSection({ ai, loading }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
     >
+      <GlassCard className="iq-panel" delay={0.02}>
+        <PanelHeader
+          title="Ask the ISP analyst"
+          subtitle="Answers use retrieved database aggregates only — never invented statistics"
+          action={<Sparkles size={18} color="var(--accent)" />}
+        />
+        <div className="admin-map-modes" role="list" aria-label="Example questions">
+          {examples.map((item) => (
+            <button
+              key={item}
+              type="button"
+              className="admin-tab"
+              disabled={askBusy}
+              onClick={() => runAsk(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        <div className="admin-map-filters" style={{ marginTop: 12 }}>
+          <label className="mon-field" style={{ flex: 1, minWidth: 220 }}>
+            <span>Question</span>
+            <input
+              type="text"
+              value={question}
+              placeholder="Ask about ISP latency, fulfilment, regions, trends…"
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") runAsk(question);
+              }}
+            />
+          </label>
+          <div className="mon-actions">
+            <SoftButton onClick={() => runAsk(question)} loading={askBusy}>
+              Ask
+            </SoftButton>
+          </div>
+        </div>
+        {askError ? <p className="admin-map-meta">{askError}</p> : null}
+        {askResult ? (
+          <div style={{ marginTop: 14 }}>
+            <p className="admin-copy">
+              <strong>{askResult.answer}</strong>
+            </p>
+            <p className="admin-map-meta">
+              Intent · {askResult.intent} · Provider · {askResult.model_provider}
+              {(askResult.citations || []).length
+                ? ` · Sources · ${askResult.citations.map((c) => c.source).join(", ")}`
+                : ""}
+            </p>
+          </div>
+        ) : (
+          <p className="admin-map-meta">
+            Pick an example or type a question. Offline playbook answers when no LLM key is set.
+          </p>
+        )}
+      </GlassCard>
+
       <GlassCard className="iq-panel" delay={0.04}>
         <PanelHeader
           title="Market summary"

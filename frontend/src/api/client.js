@@ -294,6 +294,18 @@ export function fetchAdminAi(days = 90) {
   return request(`/admin/ai/isp-analysis?days=${days}`);
 }
 
+export function fetchAdminAiFacts(days = 90) {
+  return request(`/admin/ai/facts?days=${days}`);
+}
+
+export function askAdminAi(question, days = 90) {
+  return request("/admin/ai/ask?days=" + days, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+}
+
 export async function downloadAdminReport(days = 90) {
   const url = `${API_BASE}/admin/report?days=${days}`;
   let response;

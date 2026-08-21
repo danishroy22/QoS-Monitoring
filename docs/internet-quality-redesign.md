@@ -125,6 +125,17 @@ time analysis, and advertised vs measured package performance.
 - `GET /admin/package-performance`
 - Docs: `docs/phase9-admin-dashboard.md`
 
+## Supervisor Phase 10 — AI ISP analysis
+
+Answer ISP analytics questions from retrieved aggregates only (latency,
+fulfilment, regions, peak windows, trends, underperforming packages). Offline
+playbook when no LLM key is set.
+
+- `GET /admin/ai/isp-analysis`
+- `GET /admin/ai/facts`
+- `GET|POST /admin/ai/ask`
+- Docs: `docs/phase10-ai-isp-analysis.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

@@ -294,6 +294,31 @@ class AdminAiResponse(BaseModel):
     generated_at: datetime
 
 
+class IspAiCitation(BaseModel):
+    source: str
+    detail: str
+
+
+class IspAiAskResponse(BaseModel):
+    question: str
+    intent: str
+    answer: str
+    facts_used: list[dict] = []
+    citations: list[IspAiCitation] = []
+    example_questions: list[str] = []
+    model_provider: str
+    days: int | None = None
+    generated_at: datetime | str
+
+
+class IspAiFactsResponse(BaseModel):
+    window_days: int | None = None
+    facts: dict
+    example_questions: list[str] = []
+    disclaimer: str = ""
+    generated_at: datetime | str
+
+
 class PeakMetricDelta(BaseModel):
     key: str
     label: str

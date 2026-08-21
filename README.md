@@ -49,6 +49,7 @@ Open **http://127.0.0.1:5173** and click **GO**.
 | GET | `/admin/benchmark-profiles` | Ideal / use-case QoS profiles (Phase 7) |
 | GET | `/admin/peak-hours` | Peak-hour / congestion-pattern analysis (Phase 8) |
 | GET | `/admin/package-performance` | Advertised vs measured packages (Phase 9) |
+| GET/POST | `/admin/ai/ask` | Grounded ISP analytics Q&A (Phase 10) |
 | GET | `/admin/dashboard` | Administrator KPIs and ISP leaderboard |
 | GET | `/admin/report` | Administrator QoS PDF report |
 
@@ -87,6 +88,7 @@ Full module map: **[PROGRAM_STRUCTURE.md](PROGRAM_STRUCTURE.md)**
 - `docs/phase7-benchmark-profiles.md` — Phase 7 Ideal QoS / benchmark profiles
 - `docs/phase8-peak-hours.md` — Phase 8 peak-hour / congestion patterns
 - `docs/phase9-admin-dashboard.md` — Phase 9 administrator dashboard
+- `docs/phase10-ai-isp-analysis.md` — Phase 10 AI ISP analysis Q&A
 - `backend/simulator/` — legacy synthetic NOC generator (still available under `/api`)
 
 ## Optional Generative AI

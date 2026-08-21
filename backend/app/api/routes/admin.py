@@ -23,6 +23,8 @@ from app.schemas.admin import (
     HeatmapResponse,
     HistoryAnalyticsResponse,
     IspAnalyticsResponse,
+    IspAiAskResponse,
+    IspAiFactsResponse,
     IspComparisonResponse,
     PackagePerformanceResponse,
     PeakHourResponse,
@@ -40,6 +42,7 @@ from app.services import (
     admin_service,
     benchmark_service,
     comparison_service,
+    isp_ai_qa,
     package_service,
     peak_hour_service,
 )
@@ -296,6 +299,38 @@ def admin_ai_analysis(
 ) -> AdminAiResponse:
     """Natural-language summaries of each ISP's historical performance."""
     return admin_ai.generate_isp_analysis(db, days=days)
+
+
+@router.get("/ai/facts", response_model=IspAiFactsResponse)
+def admin_ai_facts(
+    days: int | None = Query(default=90, ge=1, le=3650),
+    db: Session = Depends(get_db),
+) -> IspAiFactsResponse:
+    """Structured ISP aggregates used to ground Phase 10 answers."""
+    return isp_ai_qa.list_isp_facts(db, days=days)
+
+
+@router.get("/ai/ask", response_model=IspAiAskResponse)
+def admin_ai_ask(
+    q: str = Query(..., min_length=3, description="ISP analytics question"),
+    days: int | None = Query(default=90, ge=1, le=3650),
+    db: Session = Depends(get_db),
+) -> IspAiAskResponse:
+    """Answer an ISP analytics question using retrieved database facts only."""
+    return isp_ai_qa.answer_isp_question(db, question=q, days=days)
+
+
+@router.post("/ai/ask", response_model=IspAiAskResponse)
+def admin_ai_ask_post(
+    payload: dict,
+    days: int | None = Query(default=90, ge=1, le=3650),
+    db: Session = Depends(get_db),
+) -> IspAiAskResponse:
+    """POST variant: body ``{\"question\": \"...\"}``."""
+    question = str((payload or {}).get("question") or "").strip()
+    if len(question) < 3:
+        raise HTTPException(status_code=400, detail="question must be at least 3 characters")
+    return isp_ai_qa.answer_isp_question(db, question=question, days=days)
 
 
 @router.get("/report")
