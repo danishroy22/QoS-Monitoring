@@ -20,6 +20,7 @@ APIs and the GO / speedometer experience are unchanged.
 | GET | `/admin/ai/facts` | Structured facts for grounded Q&A (Phase 10) |
 | GET/POST | `/admin/ai/ask` | Answer ISP analytics questions from facts |
 | GET | `/admin/ai/root-cause` | Cautious root-cause style patterns (Phase 11) |
+| GET | `/admin/report` | Filtered multi-section QoS PDF (Phase 12) |
 | GET | `/admin/history` | `granularity=hourly\|daily\|weekly\|monthly` |
 | GET | `/admin/heatmap` | Aggregate by Mauritius region |
 | GET | `/admin/ai/isp-analysis` | Natural-language ISP summaries |

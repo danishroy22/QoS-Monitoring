@@ -352,11 +352,32 @@ def admin_ai_root_cause(
 @router.get("/report")
 def admin_report_pdf(
     days: int | None = Query(default=90, ge=1, le=3650),
+    isp: str | None = Query(default=None),
+    package: str | None = Query(default=None),
+    region: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    metric: str = Query(default="qos", description="download|upload|latency|jitter|packet_loss|qos"),
+    comparison: str = Query(default="isp_vs_isp", description="isp_vs_isp|isp_vs_benchmark|isp_vs_ideal"),
     db: Session = Depends(get_db),
 ) -> Response:
-    """Download a professional QoS PDF covering rankings, benchmarks, and AI."""
-    bundle = admin_service.report_payload(db, days=days)
-    bundle["ai"] = admin_ai.generate_isp_analysis(db, days=days)
+    """Generate a professional multi-section QoS PDF (Phase 12)."""
+    from app.services import report_service
+
+    bundle = report_service.build_report_bundle(
+        db,
+        days=None if (date_from or date_to) else days,
+        isp=isp,
+        package=package,
+        region=region,
+        date_from=date_from,
+        date_to=date_to,
+        metric=metric,
+        comparison=comparison,
+    )
+    bundle["ai"] = bundle.get("ai") or admin_ai.generate_isp_analysis(
+        db, days=None if (date_from or date_to) else days
+    )
     pdf = admin_report.build_qos_report_pdf(bundle)
     filename = "SmartQoS-Administrator-QoS-Report.pdf"
     return Response(

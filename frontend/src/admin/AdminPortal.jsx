@@ -58,6 +58,7 @@ const TABS = [
   { id: "history", label: "Time" },
   { id: "map", label: "QoS Map" },
   { id: "ai", label: "AI Analysis" },
+  { id: "report", label: "Report" },
 ];
 
 const MAP_METRICS = [
@@ -133,6 +134,16 @@ export default function AdminPortal({ onBack }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reportBusy, setReportBusy] = useState(false);
+  const [reportFilters, setReportFilters] = useState({
+    isp: "",
+    package: "",
+    region: "",
+    days: 90,
+    date_from: "",
+    date_to: "",
+    metric: "qos",
+    comparison: "isp_vs_isp",
+  });
   const [dashboard, setDashboard] = useState(null);
   const [ispData, setIspData] = useState(null);
   const [benchmarks, setBenchmarks] = useState(null);
@@ -360,11 +371,17 @@ export default function AdminPortal({ onBack }) {
     };
   }, [tab, days]);
 
-  const handleReport = async () => {
+  const handleReport = async (overrideFilters = null) => {
     setReportBusy(true);
     setError(null);
     try {
-      await downloadAdminReport(days);
+      const filters = { ...(overrideFilters || reportFilters) };
+      if (filters.date_from || filters.date_to) {
+        delete filters.days;
+      } else if (!filters.days) {
+        filters.days = days;
+      }
+      await downloadAdminReport(filters);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -501,7 +518,7 @@ export default function AdminPortal({ onBack }) {
                 <RefreshCw size={15} />
                 Refresh
               </SoftButton>
-              <SoftButton onClick={handleReport} loading={reportBusy}>
+              <SoftButton onClick={() => handleReport({ ...reportFilters, days })} loading={reportBusy}>
                 <Download size={15} />
                 Generate QoS Report
               </SoftButton>
@@ -635,6 +652,18 @@ export default function AdminPortal({ onBack }) {
             />
           )}
           {tab === "ai" && <AiSection key="ai" ai={ai} loading={aiLoading} days={days} />}
+          {tab === "report" && (
+            <ReportSection
+              key="report"
+              filters={reportFilters}
+              setFilters={setReportFilters}
+              availableIsps={dashboard?.leaderboard?.map((r) => r.isp) || []}
+              availablePackages={packagePerformance?.packages?.map((p) => p.package) || []}
+              availableRegions={(heatmap?.cells || []).filter((c) => c.tests > 0).map((c) => c.region)}
+              onGenerate={() => handleReport()}
+              busy={reportBusy}
+            />
+          )}
         </AnimatePresence>
       )}
     </motion.div>
@@ -2368,6 +2397,133 @@ function MapSection({ mapData, loading, filters, setFilters, heatmap }) {
           </div>
         </GlassCard>
       ) : null}
+    </motion.div>
+  );
+}
+
+function ReportSection({
+  filters,
+  setFilters,
+  availableIsps,
+  availablePackages,
+  availableRegions,
+  onGenerate,
+  busy,
+}) {
+  const onFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <motion.div
+      className="admin-section"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+    >
+      <GlassCard className="iq-panel" delay={0.04}>
+        <PanelHeader
+          title="Generate QoS Report"
+          subtitle="Professional PDF with methodology, ISP/package/region analysis, peak hours, AI, and limitations"
+          action={<Download size={18} color="var(--muted)" />}
+        />
+        <div className="admin-map-filters">
+          <label className="mon-field">
+            <span>ISP</span>
+            <select value={filters.isp} onChange={(e) => onFilter("isp", e.target.value)}>
+              <option value="">All ISPs</option>
+              {availableIsps.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Package</span>
+            <select value={filters.package} onChange={(e) => onFilter("package", e.target.value)}>
+              <option value="">All packages</option>
+              {[...new Set(availablePackages)].map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Region</span>
+            <select value={filters.region} onChange={(e) => onFilter("region", e.target.value)}>
+              <option value="">All regions</option>
+              {availableRegions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Date window</span>
+            <select
+              value={filters.days}
+              disabled={Boolean(filters.date_from || filters.date_to)}
+              onChange={(e) => onFilter("days", Number(e.target.value))}
+            >
+              {DAY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>From date</span>
+            <input
+              type="date"
+              value={filters.date_from}
+              onChange={(e) => onFilter("date_from", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>To date</span>
+            <input
+              type="date"
+              value={filters.date_to}
+              onChange={(e) => onFilter("date_to", e.target.value)}
+            />
+          </label>
+          <label className="mon-field">
+            <span>Focus metric</span>
+            <select value={filters.metric} onChange={(e) => onFilter("metric", e.target.value)}>
+              {MAP_METRICS.filter((m) => m.id !== "fulfilment").map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Comparison</span>
+            <select
+              value={filters.comparison}
+              onChange={(e) => onFilter("comparison", e.target.value)}
+            >
+              <option value="isp_vs_isp">ISP vs ISP</option>
+              <option value="isp_vs_benchmark">ISP vs Benchmark</option>
+              <option value="isp_vs_ideal">ISP vs Ideal</option>
+            </select>
+          </label>
+        </div>
+        <p className="admin-map-meta">
+          Report includes cover, executive summary, methodology, test configuration, ISP /
+          package / regional sections, metric analyses, benchmarks, peak-hour + AI notes,
+          recommendations, limitations, and conclusion. Sample sizes and measurement period are
+          stated explicitly.
+        </p>
+        <div className="mon-actions">
+          <SoftButton onClick={onGenerate} loading={busy}>
+            <Download size={15} />
+            Download PDF
+          </SoftButton>
+        </div>
+      </GlassCard>
     </motion.div>
   );
 }

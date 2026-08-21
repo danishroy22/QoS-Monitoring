@@ -127,9 +127,10 @@ app/
 │   ├── peak_hour_service.py       # Peak-hour / congestion patterns (Phase 8)
 │   ├── isp_ai_qa.py               # Grounded ISP AI Q&A (Phase 10)
 │   ├── root_cause_service.py      # Cautious root-cause patterns (Phase 11)
+│   ├── report_service.py          # Filtered report payload (Phase 12)
+│   ├── admin_report.py            # QoS PDF renderer (Phase 12)
 │   ├── package_service.py         # ISP packages + fulfilment (Phase 4)
 │   ├── admin_ai.py                # Admin ISP narratives
-│   ├── admin_report.py            # PDF report
 │   ├── ai_service.py              # Legacy NOC GenAI
 │   ├── ai_llm.py
 │   ├── ai_fallback.py

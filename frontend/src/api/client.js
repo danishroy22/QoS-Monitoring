@@ -316,8 +316,17 @@ export function fetchAdminRootCause(filters = {}) {
   return request(`/admin/ai/root-cause${qs ? `?${qs}` : ""}`);
 }
 
-export async function downloadAdminReport(days = 90) {
-  const url = `${API_BASE}/admin/report?days=${days}`;
+export async function downloadAdminReport(filters = {}) {
+  const params = new URLSearchParams();
+  const payload = typeof filters === "number" ? { days: filters } : filters || {};
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    params.set(key, String(value));
+  });
+  if (!params.has("days") && !params.has("date_from") && !params.has("date_to")) {
+    params.set("days", "90");
+  }
+  const url = `${API_BASE}/admin/report?${params.toString()}`;
   let response;
   try {
     response = await fetch(url, { headers: { Accept: "application/pdf" } });

@@ -144,6 +144,14 @@ Never claims a confirmed network root cause.
 - `GET /admin/ai/root-cause`
 - Docs: `docs/phase11-root-cause.md`
 
+## Supervisor Phase 12 — Report generation
+
+Filtered professional PDF with cover through conclusion (methodology, ISP /
+package / region, metric analyses, peak hours, AI, limitations).
+
+- `GET /admin/report`
+- Docs: `docs/phase12-report-generation.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.
