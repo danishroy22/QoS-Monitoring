@@ -1,7 +1,4 @@
-"""Load documented measurement parameters (Phase 2).
-
-Values are experimental defaults for repeatable tests — not claimed optima.
-"""
+"""Load measurement parameters from measurement_config.json."""
 
 from __future__ import annotations
 

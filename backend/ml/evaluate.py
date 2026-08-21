@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     cm = confusion_matrix(y_true, y_pred).tolist()
     report = classification_report(y_true, y_pred, target_names=["normal", "anomaly"], zero_division=0)
 
-    # Per-scenario recall for dissertation tables.
+    # Per-scenario recall for evaluation tables.
     per_scenario: dict[str, dict[str, float]] = {}
     for scenario in ScenarioType:
         idx = [

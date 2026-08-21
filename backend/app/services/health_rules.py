@@ -1,11 +1,4 @@
-"""Rule-based QoS health classification.
-
-Purpose
--------
-Provide a fast, explainable health label for each node before ML anomaly
-detection (Phase 4). These thresholds also serve as the baseline comparison
-in the dissertation evaluation.
-"""
+"""Rule-based QoS health classification thresholds."""
 
 from __future__ import annotations
 

@@ -1,8 +1,6 @@
-# Measurement methodology (Phase 2)
+# Measurement methodology
 
-Values in `backend/measurement/measurement_config.json` are **experimental
-starting points** so tests are repeatable. They are **not** claimed to be
-optimal packet sizes, probe counts, or window lengths.
+Parameters live in `backend/measurement/measurement_config.json`.
 
 ## What we are doing
 

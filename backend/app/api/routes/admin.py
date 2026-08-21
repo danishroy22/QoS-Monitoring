@@ -1,11 +1,4 @@
-"""Administrator Analytics Portal API.
-
-All routes live under ``/admin`` and read existing ``speed_tests`` data.
-They do not replace consumer speed-test or dashboard endpoints.
-
-Phase 15 — role gating (Consumer blocked; ISP Admin scoped to own ISP).
-Phase 16 — data-quality summary + reassess endpoints.
-"""
+"""Administrator portal API under ``/admin``."""
 
 from __future__ import annotations
 
@@ -123,7 +116,7 @@ def admin_isp_comparison(
 ) -> IspComparisonResponse:
     """Fair ISP comparison with avg/median/min/max/stdev and filters (Phase 6)."""
     if principal.role == "isp_administrator":
-        # Force both sides to own ISP — no cross-ISP private comparison.
+        # ISP admins compare only against their own ISP / benchmark.
         scoped = apply_isp_scope(principal, requested_isp=isp_a or isp_b)
         isp_a, isp_b = scoped, None
         mode = "isp_vs_benchmark"

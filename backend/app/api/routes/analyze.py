@@ -33,11 +33,7 @@ def analyze(
     payload: AnalyzeRequest,
     db: Session = Depends(get_db),
 ) -> AnalyzeResponse:
-    """Generate a natural-language QoS explanation and corrective actions.
-
-    Uses an OpenAI-compatible LLM when ``QOS_OPENAI_API_KEY`` is set; otherwise
-    falls back to the deterministic telecom playbook generator.
-    """
+    """Generate a QoS explanation. Uses the LLM when configured, otherwise the offline template."""
     try:
         result = ai_service.analyze_incident(
             db,

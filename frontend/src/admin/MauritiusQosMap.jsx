@@ -36,7 +36,7 @@ function formatMetric(value, metric) {
 }
 
 /**
- * Interactive Mauritius district QoS map (Phase 5).
+ * Mauritius district QoS map.
  */
 export default function MauritiusQosMap({ geojson, metric = "qos" }) {
   const features = geojson?.features || [];

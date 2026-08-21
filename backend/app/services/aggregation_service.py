@@ -1,8 +1,4 @@
-"""Traceable measurement aggregations (Phase 3).
-
-Supports grouping by ISP, package, region, date, day of week, hour, server,
-and metric. Works against SQLite (local) and Supabase Postgres (dissertation).
-"""
+"""Measurement aggregations by ISP, package, region, time, and metric."""
 
 from __future__ import annotations
 

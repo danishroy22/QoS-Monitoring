@@ -1,9 +1,4 @@
-"""Mauritius broadband test-server catalog for SmartQoS.
-
-Server identity/metadata is loaded from ``mauritius_servers.json`` so new
-servers can be added without UI changes. Throughput measurements use a shared
-local measurement backend (not third-party branded Speedtest nodes).
-"""
+"""Mauritius broadband test-server catalogue."""
 
 from __future__ import annotations
 
@@ -15,7 +10,7 @@ from typing import Any
 CONFIG_PATH = Path(__file__).with_name("mauritius_servers.json")
 DEFAULT_SERVER_ID = "emtel-ebene-18276"
 
-# Shared measurement transport — not a public Speedtest brand endpoint list.
+# Shared Cloudflare endpoints used for throughput measurement.
 MEASUREMENT_BACKEND: dict[str, Any] = {
     "download_mode": "bytes",
     "download_base_url": "https://speed.cloudflare.com/__down",
@@ -49,7 +44,7 @@ def _normalize(entry: dict[str, Any]) -> dict[str, Any]:
     ping_host = MEASUREMENT_BACKEND["ping_host"]
     dns_host = MEASUREMENT_BACKEND["dns_host"]
     if isinstance(host, str) and host.strip():
-        # Prefer the configured host hostname for identity / future probes.
+        # Prefer the configured host for ping / DNS identity.
         hostname = host.split(":")[0].strip()
         if hostname and not hostname.replace(".", "").isdigit():
             ping_host = hostname

@@ -1,8 +1,4 @@
-"""Phase 11 — AI root-cause *style* analysis (cautious pattern explanations).
-
-Identifies co-occurring QoS patterns (e.g. latency up + download down in a peak
-window) and explains them carefully. Never claims a confirmed network root cause.
-"""
+"""Root-cause style pattern explanations from QoS aggregates."""
 
 from __future__ import annotations
 

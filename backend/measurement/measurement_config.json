@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "throughput_mode": "bytes",
-  "note": "Restored pre–Phase-2 byte-pass throughput defaults (fixed byte budgets). Latency still uses configurable probe counts.",
+  "note": "Byte-budget throughput (fixed download/upload sizes) with configurable latency probes.",
   "full": {
     "latency_packet_size": 32,
     "latency_packet_count": 12,

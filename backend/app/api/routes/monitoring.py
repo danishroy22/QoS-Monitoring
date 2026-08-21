@@ -1,7 +1,4 @@
-"""Continuous QoS Monitoring API routes (Phase 7).
-
-Additive endpoints — does not replace existing speed-test or dashboard APIs.
-"""
+"""Continuous QoS Monitoring API routes."""
 
 from __future__ import annotations
 

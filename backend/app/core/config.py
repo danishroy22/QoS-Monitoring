@@ -1,11 +1,4 @@
-"""Application settings loaded from environment variables / .env file.
-
-Purpose
--------
-Centralise configuration so the same code runs against SQLite (default, zero
-setup) during development and PostgreSQL (dissertation target) in evaluation by
-changing a single environment variable.
-"""
+"""Application settings from environment variables / .env."""
 
 from __future__ import annotations
 
@@ -34,27 +27,21 @@ class Settings(BaseSettings):
         default=f"sqlite:///{(BACKEND_DIR / 'qos_monitoring.db').as_posix()}"
     )
     # Optional Supabase Postgres URL (preferred over database_url when set).
-    # Example: postgresql+psycopg://postgres.xxx:PASSWORD@aws-0-...pooler.supabase.com:6543/postgres?sslmode=require
     supabase_db_url: str = ""
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     seed_nodes: bool = True
 
-    # Phase 3 — privacy / traceability
     client_hash_salt: str = "smartqos-dev-salt-change-me"
     store_public_ip: bool = True
 
-    # Phase 6 — Generative AI (OpenAI-compatible). Leave api_key empty to use
-    # the deterministic offline fallback (recommended for demos without billing).
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
     ai_timeout_seconds: float = 30.0
     ai_force_fallback: bool = False
 
-    # Phase 15 — role-based access (token headers). Default off for local demos.
     auth_required: bool = False
     admin_token: str = "admin-demo-token"
-    # Format: Emtel:emtel-demo-token,Rogers:rogers-demo-token
     isp_tokens: str = "Emtel:emtel-demo-token,Rogers:rogers-demo-token,Mauritius Telecom / Orange:mt-demo-token"
 
     @property

@@ -1,8 +1,4 @@
-"""Privacy helpers for traceable measurement context (Phase 3).
-
-Raw public IPs are optional. Aggregation and cross-run correlation should use
-``client_hash`` (HMAC-SHA256) so the dissertation can avoid unnecessary PII.
-"""
+"""Client hashing helpers for measurement context."""
 
 from __future__ import annotations
 

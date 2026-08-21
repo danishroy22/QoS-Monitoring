@@ -19,7 +19,7 @@ FastAPI + SQLAlchemy backend for QoS ingestion, storage, and metric queries.
 ## Database
 
 Defaults to **SQLite** (`backend/qos_monitoring.db`) so it runs with zero setup.
-To use **PostgreSQL** (dissertation target), install the driver and set the URL:
+To use **PostgreSQL**, install the driver and set the URL:
 
 ```bash
 pip install "psycopg[binary]"

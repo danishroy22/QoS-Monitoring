@@ -1,10 +1,4 @@
-"""Phase 10 — AI ISP analysis Q&A grounded in aggregated database facts.
-
-Answers are derived from structured retrieval (ISP analytics, packages, peak
-hours, regional heatmap). The LLM may only rephrase facts; it must not invent
-statistics. When the LLM is unavailable, the offline playbook answers directly
-from the same facts.
-"""
+"""ISP analytics Q&A using aggregates retrieved from the database."""
 
 from __future__ import annotations
 
@@ -523,7 +517,7 @@ def answer_isp_question(
     parsed = _ask_llm(settings, fact_slice) if settings.ai_enabled else None
     if parsed:
         notes = parsed.get("notes") if isinstance(parsed.get("notes"), list) else []
-        # Numbers stay grounded in the offline fact answer; LLM may only add brief notes.
+        # Prefer numbers from the fact answer; the LLM may only add short notes.
         if notes:
             answer = offline_answer + " " + " ".join(str(n) for n in notes[:2])
             provider = f"openai:{settings.openai_model}+facts"

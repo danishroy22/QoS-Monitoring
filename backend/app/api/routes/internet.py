@@ -1,4 +1,4 @@
-"""Internet Quality API routes — Ookla-style measurement platform."""
+"""Internet Quality API routes."""
 
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ def speedtest_identify() -> ConnectionIdentity:
 def speedtest_find_server(
     isp_name: str | None = Query(default=None),
 ) -> SpeedTestFindServerResponse:
-    """Probe Mauritius servers and recommend the best candidate (additive scoring)."""
+    """Probe Mauritius servers and recommend the best candidate."""
     return SpeedTestFindServerResponse.model_validate(
         internet_service.find_best_server(detected_isp=isp_name)
     )

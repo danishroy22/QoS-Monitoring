@@ -1,9 +1,4 @@
-"""Peak-hour and congestion-pattern analysis (Phase 8).
-
-Compares evening / busy-hour buckets against off-peak baselines. Wording is
-deliberately cautious: measured degradation may be *consistent with* congestion
-but cannot independently confirm root cause.
-"""
+"""Peak-hour analysis comparing busy hours against off-peak baselines."""
 
 from __future__ import annotations
 

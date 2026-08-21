@@ -1,8 +1,4 @@
-"""Natural-language ISP analysis for the Administrator Portal (Phase 18).
-
-Uses the existing OpenAI-compatible client when configured, otherwise the
-offline playbook — same pattern as the consumer Network Assistant.
-"""
+"""Natural-language ISP analysis for the Administrator portal."""
 
 from __future__ import annotations
 
@@ -26,7 +22,7 @@ SYSTEM_PROMPT = (
     "You are the SmartQoS Administrator analyst for Mauritius broadband. "
     "Return JSON with keys: market_summary (string), recommendations (string array), "
     "isps (array of {isp, summary, strengths, weaknesses, recommendations}). "
-    "Be concise, factual, and operator-facing. Do not invent measurements."
+    "Be concise and factual. Do not invent measurements."
 )
 
 

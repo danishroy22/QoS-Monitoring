@@ -134,7 +134,7 @@ export default function AiPanel({
           <h2>AI analysis</h2>
           <p>
             {analysis || saved.length > 0
-              ? "Generative AI / offline playbook recommendation"
+              ? "AI recommendation"
               : "Live synopsis — click generate for full AI analysis"}
           </p>
         </div>

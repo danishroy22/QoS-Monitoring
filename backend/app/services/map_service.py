@@ -1,8 +1,4 @@
-"""Mauritius geographic QoS map aggregations (Phase 5).
-
-Builds a GeoJSON FeatureCollection of districts with filtered metric averages
-and documented colour-scale thresholds for the administrator map.
-"""
+"""Mauritius district QoS map aggregations and GeoJSON output."""
 
 from __future__ import annotations
 

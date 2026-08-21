@@ -47,8 +47,7 @@ function formatCountdown(iso) {
 }
 
 /**
- * Continuous QoS Monitoring page (Phase 7).
- * Enable/disable interval-based background measurements.
+ * Continuous QoS monitoring controls.
  */
 export default function MonitoringView({ onBack }) {
   const [status, setStatus] = useState(null);

@@ -1,6 +1,6 @@
 # Phase 16 — Data quality and validation
 
-Measurements are **never silently deleted**. Invalid or incomplete tests are **marked** and excluded from analytics by default.
+Invalid or incomplete measurements are **marked** (not removed) and excluded from analytics by default.
 
 ## Flags & statuses
 

@@ -1,11 +1,4 @@
-"""FastAPI application factory for the AI Internet Quality platform.
-
-Primary product surface (Ookla-style):
-  POST /speedtest, GET /history, GET /dashboard, GET /statistics,
-  GET /isp, GET /recommendation, GET /health
-
-Legacy NOC simulator APIs remain under /api/* for dissertation continuity.
-"""
+"""FastAPI application for the Internet Quality platform."""
 
 from __future__ import annotations
 
@@ -55,15 +48,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Primary Internet Quality API (Phases 2–6 redesign)
     app.include_router(internet.router)
-    # Phase 7 — Continuous QoS Monitoring
     app.include_router(monitoring.router)
-    # Phase 18 — Administrator Analytics Portal
     app.include_router(admin.router)
-    # Keep a single health endpoint from the dedicated health router as well
-    # (internet.router also exposes /health — FastAPI will use the first match).
-    # Legacy simulated NOC platform
     prefix = settings.api_prefix
     app.include_router(health.router)
     app.include_router(measurements.router, prefix=prefix)

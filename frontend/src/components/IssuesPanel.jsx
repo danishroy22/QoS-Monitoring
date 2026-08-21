@@ -1,10 +1,7 @@
 import { formatDateTime, scenarioLabel } from "../utils/format";
 
 /**
- * Issues panel.
- * Shows ML anomalies when Phase 4 has written them. Until then, derives
- * operational issues from live health_status so the NOC is never empty
- * while the simulator is feeding degraded data.
+ * Issues panel for unhealthy nodes and detected anomalies.
  */
 export default function IssuesPanel({ metrics, anomalies }) {
   const anomalyRows = Array.isArray(anomalies) ? anomalies : [];
@@ -40,7 +37,7 @@ export default function IssuesPanel({ metrics, anomalies }) {
         <p>
           {anomalyRows.length > 0
             ? "Machine learning anomaly results"
-            : "Rule-based health alerts (ML arrives in Phase 4)"}
+            : "Rule-based health alerts"}
         </p>
       </div>
 

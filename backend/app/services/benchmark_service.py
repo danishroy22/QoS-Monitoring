@@ -1,8 +1,4 @@
-"""Configurable multi-profile QoS benchmarks (Phase 7).
-
-Profiles are dissertation comparison anchors with documented source, rationale,
-unit, threshold, and description per metric. They are NOT universal standards.
-"""
+"""Multi-profile QoS benchmark catalogue."""
 
 from __future__ import annotations
 

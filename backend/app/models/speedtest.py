@@ -15,11 +15,7 @@ def _utcnow() -> datetime:
 
 
 class SpeedTestResult(Base):
-    """One stored run from the Network Measurement Engine.
-
-    Phase 3 adds traceable context (client hash, package, server metadata, and
-    UTC time buckets) so rows can be aggregated without unnecessary PII.
-    """
+    """One stored Internet quality measurement."""
 
     __tablename__ = "speed_tests"
 
@@ -84,7 +80,7 @@ class SpeedTestResult(Base):
     overall_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     overall_rating: Mapped[str | None] = mapped_column(String(40), nullable=True)
     errors_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Phase 16 — data quality (rows are marked, never silently deleted)
+    # Data quality flags (invalid rows are kept, not deleted)
     quality_status: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
     quality_flags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     analytics_eligible: Mapped[bool | None] = mapped_column(Boolean, nullable=True, index=True)

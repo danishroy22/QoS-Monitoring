@@ -1,11 +1,4 @@
-"""Fair ISP comparison (Phase 6).
-
-Compares ISPs with avg / median / min / max / stdev and n=, filtered by package,
-region, and time so different tiers or geographies are not mixed unfairly.
-
-Does NOT rank ISPs by raw download speed alone — primary ordering uses QoS
-score (then sample size). Raw throughput remains visible as context only.
-"""
+"""ISP comparison with avg/median/min/max/stdev and filters."""
 
 from __future__ import annotations
 

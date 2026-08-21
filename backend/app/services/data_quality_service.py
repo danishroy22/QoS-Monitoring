@@ -1,8 +1,4 @@
-"""Phase 16 — data quality marking (never silent deletion).
-
-Flags incomplete / failed / outlier / duplicate-suspect rows and excludes them
-from analytics by default while keeping every row in the database.
-"""
+"""Mark invalid or incomplete speed-test rows without deleting them."""
 
 from __future__ import annotations
 
@@ -17,7 +13,6 @@ from sqlalchemy.orm import Session
 from app.models.speedtest import SpeedTestResult
 from app.services.admin_service import normalize_isp, region_from_label
 
-# Soft outlier fences (dissertation heuristics, not standards).
 OUTLIER_DOWNLOAD_MAX = 2500.0
 OUTLIER_UPLOAD_MAX = 2500.0
 OUTLIER_PING_MAX = 2000.0
@@ -245,8 +240,8 @@ def quality_summary(db: Session, *, days: int | None = 90, isp: str | None = Non
             else "Average Download: — (n=0)"
         ),
         "note": (
-            "Rows are never silently deleted. Invalid/incomplete/outlier/duplicate-suspect "
-            "tests remain stored but are excluded from analytics when analytics_eligible=false."
+            "Invalid or incomplete rows stay in the database and are excluded from "
+            "analytics when analytics_eligible is false."
         ),
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }

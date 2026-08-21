@@ -128,8 +128,7 @@ function KpiCard({ label, value, unit, icon: Icon, accent = "primary", delay = 0
 }
 
 /**
- * Dedicated NOC-style Administrator Analytics Portal.
- * Isolated from the consumer speed-test experience.
+ * Administrator analytics portal.
  */
 export default function AdminPortal({ onBack }) {
   const [tab, setTab] = useState("overview");
@@ -721,7 +720,7 @@ function QualitySection({ quality, busy, canReassess, onReassess }) {
       <GlassCard className="iq-panel" delay={0.02}>
         <PanelHeader
           title="Data quality & validation"
-          subtitle="Rows are marked, never silently deleted — analytics use eligible samples only"
+          subtitle="Invalid rows are kept and flagged; averages use eligible samples only"
           action={
             canReassess ? (
               <SoftButton onClick={onReassess} loading={busy}>
@@ -1299,7 +1298,7 @@ function RootCauseSection({ data, loading, filters, setFilters }) {
       <GlassCard className="iq-panel" delay={0.04}>
         <PanelHeader
           title="Root-cause style analysis"
-          subtitle="Pattern explanations only — never claimed as confirmed network causes"
+          subtitle="Pattern explanations based on co-occurring metrics — not confirmed fault diagnosis"
           action={<Sparkles size={18} color="var(--accent)" />}
         />
         <div className="admin-map-filters">
@@ -2751,7 +2750,7 @@ function AiSection({ ai, loading, days }) {
           </div>
         ) : (
           <p className="admin-map-meta">
-            Pick an example or type a question. Offline playbook answers when no LLM key is set.
+            Ask a question about ISP performance. Uses stored aggregates; offline answers if no LLM key is set.
           </p>
         )}
       </GlassCard>

@@ -1,8 +1,4 @@
-"""Professional PDF generator for Administrator QoS reports (Phase 12).
-
-Produces a multi-section A4 report with tables and simple bar charts. Report
-content is grounded in retrieved SmartQoS aggregates only.
-"""
+"""PDF generator for Administrator QoS reports."""
 
 from __future__ import annotations
 
@@ -433,8 +429,8 @@ def build_qos_report_pdf(payload: dict[str, Any]) -> bytes:
                 f"Active profile <b>{profile.name}</b> — Download ≥ {profile.download_mbps} Mbps, "
                 f"Upload ≥ {profile.upload_mbps} Mbps, Ping ≤ {profile.ping_ms} ms, "
                 f"Jitter ≤ {profile.jitter_ms} ms, Loss ≤ {profile.packet_loss_pct}%, "
-                f"QoS ≥ {profile.overall_score}. Thresholds are configurable dissertation "
-                "anchors, not universal standards."
+                f"QoS ≥ {profile.overall_score}. Thresholds come from the active "
+                "benchmark profile."
             ),
             styles["body"],
         )
@@ -526,7 +522,7 @@ def build_qos_report_pdf(payload: dict[str, Any]) -> bytes:
     story.append(
         Paragraph(
             f"Provider: {getattr(ai, 'model_provider', 'n/a')}. "
-            "Narratives are grounded in stored aggregates.",
+            "Narratives are based on stored aggregates.",
             styles["body"],
         )
     )

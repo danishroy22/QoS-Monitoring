@@ -1,8 +1,4 @@
-"""Administrator analytics over existing ``speed_tests`` rows (Phase 18).
-
-Read-only aggregations for the ISP portal. Does not change measurement or
-consumer speed-test APIs.
-"""
+"""Administrator analytics over stored speed_tests rows."""
 
 from __future__ import annotations
 

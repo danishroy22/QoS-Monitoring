@@ -1,10 +1,4 @@
-"""Deterministic offline AI fallback for demos without an LLM API key.
-
-Purpose
--------
-Guarantee dissertation demonstrations always produce telecom-relevant
-explanations even when OpenAI (or compatible) credentials are unavailable.
-"""
+"""Offline AI fallback when no LLM API key is configured."""
 
 from __future__ import annotations
 

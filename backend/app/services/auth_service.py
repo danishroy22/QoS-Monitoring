@@ -1,17 +1,11 @@
-"""Phase 15 — role-based access (Consumer / Administrator / ISP Administrator).
-
-Dissertation-friendly token auth via headers. When ``QOS_AUTH_REQUIRED=false``
-(default), local demos keep working with an implicit administrator principal.
-ISP Administrators are hard-scoped to their ISP and cannot read other ISPs'
-operational aggregates.
-"""
+"""Role-based access for Consumer, Administrator, and ISP Administrator."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from fastapi import Depends, Header, HTTPException, Query
+from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
@@ -92,7 +86,6 @@ def resolve_principal(
     isp_hint = (isp_header or "").strip()
 
     if not settings.auth_required:
-        # Demo mode: honour role header when present; default administrator.
         if role_raw in {"consumer", "administrator", "isp_administrator"}:
             if role_raw == "isp_administrator":
                 from app.services.admin_service import normalize_isp
@@ -101,11 +94,11 @@ def resolve_principal(
                 if not scope or scope == "Unknown":
                     raise HTTPException(
                         status_code=400,
-                        detail="ISP Administrator requires X-SmartQoS-ISP header in demo mode",
+                        detail="ISP Administrator requires X-SmartQoS-ISP header",
                     )
                 return Principal(role="isp_administrator", isp_scope=scope, label=f"isp:{scope}")
-            return Principal(role=role_raw, label=f"demo:{role_raw}")  # type: ignore[arg-type]
-        return Principal(role="administrator", label="demo-admin")
+            return Principal(role=role_raw, label=f"local:{role_raw}")  # type: ignore[arg-type]
+        return Principal(role="administrator", label="local-admin")
 
     if not role_raw or not token:
         raise HTTPException(
@@ -130,11 +123,10 @@ def resolve_principal(
         if isp_hint and normalize_isp(isp_hint) != matched_isp:
             raise HTTPException(
                 status_code=403,
-                detail="ISP scope mismatch — cannot assume another ISP identity",
+                detail="ISP scope mismatch",
             )
         return Principal(role="isp_administrator", isp_scope=matched_isp, label=f"isp:{matched_isp}")
     if role_raw == "consumer":
-        # Consumer tokens are not used for /admin; allow identity acknowledgement.
         return Principal(role="consumer", label="consumer")
     raise HTTPException(status_code=400, detail=f"Unknown role '{role_raw}'")
 
@@ -164,7 +156,7 @@ def require_full_admin(principal: Principal = Depends(require_admin_portal)) -> 
     if principal.role != "administrator":
         raise HTTPException(
             status_code=403,
-            detail="Only the national Administrator may perform this action",
+            detail="Administrator role required",
         )
     return principal
 
@@ -198,8 +190,5 @@ def auth_status(principal: Principal) -> AuthStatusResponse:
         isp_scope=principal.isp_scope,
         label=principal.label,
         permissions=permissions_for(principal),
-        note=(
-            "ISP Administrators never receive another ISP's private operational aggregates. "
-            "Set QOS_AUTH_REQUIRED=true for enforced token checks."
-        ),
+        note="ISP Administrators are limited to their own ISP. Set QOS_AUTH_REQUIRED=true to enforce tokens.",
     )
