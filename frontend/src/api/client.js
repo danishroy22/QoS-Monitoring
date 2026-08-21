@@ -306,6 +306,16 @@ export function askAdminAi(question, days = 90) {
   });
 }
 
+export function fetchAdminRootCause(filters = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    params.set(key, String(value));
+  });
+  const qs = params.toString();
+  return request(`/admin/ai/root-cause${qs ? `?${qs}` : ""}`);
+}
+
 export async function downloadAdminReport(days = 90) {
   const url = `${API_BASE}/admin/report?days=${days}`;
   let response;

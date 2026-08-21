@@ -319,6 +319,41 @@ class IspAiFactsResponse(BaseModel):
     generated_at: datetime | str
 
 
+class RootCauseEvidence(BaseModel):
+    metric: str
+    label: str
+    unit: str
+    peak_avg: float | None = None
+    baseline_avg: float | None = None
+    delta_pct: float | None = None
+    degraded: bool | None = None
+
+
+class RootCausePattern(BaseModel):
+    id: str
+    title: str
+    window_label: str | None = None
+    confidence: Literal["low", "medium", "high"] = "low"
+    narrative: str
+    evidence: list[RootCauseEvidence] = []
+    consistent_with: list[str] = []
+    cannot_confirm: list[str] = []
+
+
+class RootCauseResponse(BaseModel):
+    summary: str
+    limitation: str
+    patterns: list[RootCausePattern] = []
+    filters: dict = {}
+    available_isps: list[str] = []
+    available_packages: list[str] = []
+    available_regions: list[str] = []
+    total_tests: int = 0
+    peak_window: PeakWindow | None = None
+    model_provider: str = "root-cause-playbook-v1"
+    generated_at: datetime | str
+
+
 class PeakMetricDelta(BaseModel):
     key: str
     label: str

@@ -136,6 +136,14 @@ playbook when no LLM key is set.
 - `GET|POST /admin/ai/ask`
 - Docs: `docs/phase10-ai-isp-analysis.md`
 
+## Supervisor Phase 11 — AI root-cause style analysis
+
+Cautious pattern explanations (e.g. latency↑ + download↓ in a peak window).
+Never claims a confirmed network root cause.
+
+- `GET /admin/ai/root-cause`
+- Docs: `docs/phase11-root-cause.md`
+
 ## Phase 18 — Administrator Analytics Portal
 
 Separate NOC-style portal over `speed_tests`. See `docs/admin-portal.md`.

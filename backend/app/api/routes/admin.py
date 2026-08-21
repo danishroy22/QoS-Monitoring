@@ -29,6 +29,7 @@ from app.schemas.admin import (
     PackagePerformanceResponse,
     PeakHourResponse,
     QosMapResponse,
+    RootCauseResponse,
 )
 from app.schemas.packages import (
     InternetPackageCreate,
@@ -45,6 +46,7 @@ from app.services import (
     isp_ai_qa,
     package_service,
     peak_hour_service,
+    root_cause_service,
 )
 from app.services import map_service
 
@@ -331,6 +333,20 @@ def admin_ai_ask_post(
     if len(question) < 3:
         raise HTTPException(status_code=400, detail="question must be at least 3 characters")
     return isp_ai_qa.answer_isp_question(db, question=question, days=days)
+
+
+@router.get("/ai/root-cause", response_model=RootCauseResponse)
+def admin_ai_root_cause(
+    isp: str | None = Query(default=None),
+    package: str | None = Query(default=None),
+    region: str | None = Query(default=None),
+    days: int | None = Query(default=90, ge=1, le=3650),
+    db: Session = Depends(get_db),
+) -> RootCauseResponse:
+    """Cautious root-cause *style* pattern explanations (Phase 11)."""
+    return root_cause_service.analyze_root_cause(
+        db, isp=isp, package=package, region=region, days=days
+    )
 
 
 @router.get("/report")

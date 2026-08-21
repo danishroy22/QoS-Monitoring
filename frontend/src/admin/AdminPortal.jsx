@@ -21,6 +21,7 @@ import {
   downloadAdminReport,
   fetchAdminAi,
   askAdminAi,
+  fetchAdminRootCause,
   fetchAdminBenchmarks,
   setActiveAdminBenchmarkProfile,
   updateAdminBenchmarkProfile,
@@ -51,6 +52,7 @@ const TABS = [
   { id: "isp", label: "ISP Analytics" },
   { id: "compare", label: "Compare" },
   { id: "peak", label: "Peak Hours" },
+  { id: "rootcause", label: "Root Cause" },
   { id: "packages", label: "Packages" },
   { id: "benchmarks", label: "Benchmarks" },
   { id: "history", label: "Time" },
@@ -174,6 +176,14 @@ export default function AdminPortal({ onBack }) {
     days: 90,
     date_from: "",
     date_to: "",
+  });
+  const [rootCause, setRootCause] = useState(null);
+  const [rootCauseLoading, setRootCauseLoading] = useState(false);
+  const [rootCauseFilters, setRootCauseFilters] = useState({
+    isp: "",
+    package: "",
+    region: "",
+    days: 90,
   });
   const [ai, setAi] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -311,6 +321,25 @@ export default function AdminPortal({ onBack }) {
       cancelled = true;
     };
   }, [tab, peakFilters]);
+
+  useEffect(() => {
+    if (tab !== "rootcause") return undefined;
+    let cancelled = false;
+    setRootCauseLoading(true);
+    fetchAdminRootCause(rootCauseFilters)
+      .then((data) => {
+        if (!cancelled) setRootCause(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setRootCauseLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, rootCauseFilters]);
 
   useEffect(() => {
     if (tab !== "ai") return undefined;
@@ -543,6 +572,15 @@ export default function AdminPortal({ onBack }) {
               loading={peakLoading}
               filters={peakFilters}
               setFilters={setPeakFilters}
+            />
+          )}
+          {tab === "rootcause" && (
+            <RootCauseSection
+              key="rootcause"
+              data={rootCause}
+              loading={rootCauseLoading}
+              filters={rootCauseFilters}
+              setFilters={setRootCauseFilters}
             />
           )}
           {tab === "packages" && (
@@ -1096,6 +1134,130 @@ function formatDelta(metric) {
   if (metric?.delta_pct == null) return "—";
   const sign = metric.delta_pct > 0 ? "+" : "";
   return `${sign}${formatNumber(metric.delta_pct, 1)}%`;
+}
+
+function RootCauseSection({ data, loading, filters, setFilters }) {
+  const onFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+  const patterns = data?.patterns || [];
+
+  return (
+    <motion.div
+      className="admin-section"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+    >
+      <GlassCard className="iq-panel" delay={0.04}>
+        <PanelHeader
+          title="Root-cause style analysis"
+          subtitle="Pattern explanations only — never claimed as confirmed network causes"
+          action={<Sparkles size={18} color="var(--accent)" />}
+        />
+        <div className="admin-map-filters">
+          <label className="mon-field">
+            <span>ISP</span>
+            <select value={filters.isp} onChange={(e) => onFilter("isp", e.target.value)}>
+              <option value="">All ISPs</option>
+              {(data?.available_isps || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Package</span>
+            <select value={filters.package} onChange={(e) => onFilter("package", e.target.value)}>
+              <option value="">All packages</option>
+              {(data?.available_packages || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Region</span>
+            <select value={filters.region} onChange={(e) => onFilter("region", e.target.value)}>
+              <option value="">All regions</option>
+              {(data?.available_regions || []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mon-field">
+            <span>Date window</span>
+            <select
+              value={filters.days}
+              onChange={(e) => onFilter("days", Number(e.target.value))}
+            >
+              {DAY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <p className="admin-map-meta">{data?.limitation}</p>
+        <p className="admin-map-meta">
+          {data?.total_tests ?? 0} tests · confidence on patterns is deliberately{" "}
+          <strong>low</strong> · provider {data?.model_provider || "—"}
+        </p>
+      </GlassCard>
+
+      {loading ? (
+        <SkeletonCards count={2} />
+      ) : (
+        <>
+          <GlassCard className="iq-panel" delay={0.06}>
+            <PanelHeader title="Primary explanation" subtitle="Grounded in measured co-occurring deltas" />
+            <p className="admin-copy">{data?.summary || "No analysis yet."}</p>
+          </GlassCard>
+
+          {patterns.length === 0 ? (
+            <GlassCard className="iq-panel" delay={0.08}>
+              <EmptyHint>No material pattern detected in this filter window.</EmptyHint>
+            </GlassCard>
+          ) : (
+            patterns.map((pattern, index) => (
+              <GlassCard key={pattern.id} className="iq-panel compact" delay={0.08 + index * 0.03}>
+                <PanelHeader
+                  title={pattern.title}
+                  subtitle={`${pattern.window_label || "Trend window"} · confidence ${pattern.confidence}`}
+                />
+                <p className="admin-copy">{pattern.narrative}</p>
+                {(pattern.evidence || []).length > 0 ? (
+                  <div className="mon-last-grid">
+                    {pattern.evidence.map((ev) => (
+                      <div key={`${pattern.id}-${ev.metric}`}>
+                        <span>{ev.label}</span>
+                        <strong className={ev.degraded ? "off" : "on"}>
+                          {formatDelta(ev)}
+                          {" · "}
+                          {formatNumber(ev.peak_avg, 1)}
+                          {" / "}
+                          {formatNumber(ev.baseline_avg, 1)} {ev.unit}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                <p className="admin-map-meta">
+                  Consistent with: {(pattern.consistent_with || []).join("; ") || "—"}
+                </p>
+                <p className="admin-map-meta">
+                  Cannot confirm: {(pattern.cannot_confirm || []).join("; ") || "—"}
+                </p>
+              </GlassCard>
+            ))
+          )}
+        </>
+      )}
+    </motion.div>
+  );
 }
 
 function PeakHoursSection({ peakData, loading, filters, setFilters }) {

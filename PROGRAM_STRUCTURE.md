@@ -126,6 +126,7 @@ app/
 │   ├── benchmark_service.py       # Ideal QoS profiles (Phase 7)
 │   ├── peak_hour_service.py       # Peak-hour / congestion patterns (Phase 8)
 │   ├── isp_ai_qa.py               # Grounded ISP AI Q&A (Phase 10)
+│   ├── root_cause_service.py      # Cautious root-cause patterns (Phase 11)
 │   ├── package_service.py         # ISP packages + fulfilment (Phase 4)
 │   ├── admin_ai.py                # Admin ISP narratives
 │   ├── admin_report.py            # PDF report
